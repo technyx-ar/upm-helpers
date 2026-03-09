@@ -1,5 +1,5 @@
 {
-    "name": "com.technyx.one",
+    "name": "ar.technyx.upm-helpers",
     "version": "0.1.0",
     "displayName": "Technyx One SDK",
     "description": "Authentication, token management, and API client for Technyx AR/VR backend.",
