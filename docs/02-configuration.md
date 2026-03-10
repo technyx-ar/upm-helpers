@@ -2,13 +2,13 @@
 
 ## Config File
 
-The SDK reads configuration from `Resources/OneConfig.json`. A default config is shipped with the package.
+The SDK reads configuration from `Resources/TechnyxConfig.json`. A default config is shipped with the package.
 
 ```json
 {
     "apiBaseUrl": "https://api.technyx.tools/api/v1",
     "tokenRefreshMarginSeconds": 300,
-    "encryptionSalt": "TnxOneSdkSalt2026",
+    "encryptionSalt": "TnxSdkSalt2026",
     "requestTimeoutSeconds": 30
 }
 ```
@@ -19,19 +19,19 @@ The SDK reads configuration from `Resources/OneConfig.json`. A default config is
 |-------|------|---------|-------------|
 | `apiBaseUrl` | string | `https://api.technyx.tools/api/v1` | Base URL for all API requests. No trailing slash. |
 | `tokenRefreshMarginSeconds` | int | `300` | Seconds before token expiry to trigger auto-refresh. |
-| `encryptionSalt` | string | `TnxOneSdkSalt2026` | Salt used for encrypting stored tokens. Change per project. |
+| `encryptionSalt` | string | `TnxSdkSalt2026` | Salt used for encrypting stored tokens. Change per project. |
 | `requestTimeoutSeconds` | int | `30` | HTTP request timeout. |
 
 ## Editor Settings
 
-Go to **Edit > Project Settings > Technyx One** to edit the config visually. Click **Save** to write changes to disk.
+Go to **Edit > Project Settings > Technyx SDK** to edit the config visually. Click **Save** to write changes to disk.
 
 ## Override at Runtime
 
 ```csharp
-using Technyx.One.Config;
+using Technyx.Sdk.Config;
 
-OneConfigLoader.Override(new OneConfig
+SdkConfigLoader.Override(new SdkConfig
 {
     apiBaseUrl = "https://staging.technyx.tools/api/v1",
     tokenRefreshMarginSeconds = 60,
@@ -40,8 +40,8 @@ OneConfigLoader.Override(new OneConfig
 });
 ```
 
-> **Note:** Runtime overrides must be applied before `OneServices` initializes (before the first scene loads), or you must reinitialize manually.
+> **Note:** Runtime overrides must be applied before `TechnyxSdk` initializes (before the first scene loads), or you must reinitialize manually.
 
 ## Per-Project Config
 
-To override the package default, create your own `Assets/Resources/OneConfig.json`. Unity will load it instead of the package's built-in version.
+To override the package default, create your own `Assets/Resources/TechnyxConfig.json`. Unity will load it instead of the package's built-in version.

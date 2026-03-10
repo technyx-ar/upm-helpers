@@ -1,6 +1,6 @@
 using System;
 
-namespace Technyx.One.Auth
+namespace Technyx.Sdk.Auth
 {
     public class TokenData
     {

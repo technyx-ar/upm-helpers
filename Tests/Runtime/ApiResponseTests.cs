@@ -1,7 +1,7 @@
 using NUnit.Framework;
-using Technyx.One.Http;
+using Technyx.Sdk.Http;
 
-namespace Technyx.One.Tests
+namespace Technyx.Sdk.Tests
 {
     [TestFixture]
     public class ApiResponseTests

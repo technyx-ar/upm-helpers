@@ -1,7 +1,7 @@
 using System;
 using Newtonsoft.Json;
 
-namespace Technyx.One.Http
+namespace Technyx.Sdk.Http
 {
     [Serializable]
     public class ApiError

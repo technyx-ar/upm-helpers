@@ -1,7 +1,7 @@
 using System;
 using Newtonsoft.Json;
 
-namespace Technyx.One.Models
+namespace Technyx.Sdk.Models
 {
     [Serializable]
     public class LoginResponse

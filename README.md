@@ -1,4 +1,4 @@
-# Technyx One SDK
+# Technyx SDK
 
 Unity Package Manager (UPM) package for Technyx AR/VR backend integration. Provides authentication, token management, and a typed HTTP client.
 
@@ -17,49 +17,49 @@ Requires Unity 2022.3 LTS or newer.
 The SDK auto-initializes – no prefab or setup code needed.
 
 ```csharp
-using Technyx.One;
-using Technyx.One.Auth;
+using Technyx.Sdk;
+using Technyx.Sdk.Auth;
 
 // Login
-var result = await OneServices.Auth.LoginAsync("user@example.com", "password");
+var result = await TechnyxSdk.Auth.LoginAsync("user@example.com", "password");
 if (result.IsSuccess)
     Debug.Log($"Welcome, {result.Data.User.Name}!");
 
 // Check auth state
-if (OneServices.Auth.IsAuthenticated)
+if (TechnyxSdk.Auth.IsAuthenticated)
     Debug.Log("Logged in");
 
 // Make authenticated API calls (Bearer token attached automatically)
-var data = await OneServices.Http.GetAsync<MyModel>("some/endpoint");
+var data = await TechnyxSdk.Http.GetAsync<MyModel>("some/endpoint");
 
 // Listen for auth state changes
-OneServices.Auth.OnAuthStateChanged += (oldState, newState) =>
+TechnyxSdk.Auth.OnAuthStateChanged += (oldState, newState) =>
 {
     if (newState == AuthState.Error)
         ShowLoginScreen();
 };
 
 // Get current user
-var user = await OneServices.Auth.GetCurrentUserAsync();
+var user = await TechnyxSdk.Auth.GetCurrentUserAsync();
 
 // Logout
-await OneServices.Auth.LogoutAsync();
+await TechnyxSdk.Auth.LogoutAsync();
 ```
 
 ## Configuration
 
-Edit `Resources/OneConfig.json` or use **Edit > Project Settings > Technyx One**:
+Edit `Resources/TechnyxConfig.json` or use **Edit > Project Settings > Technyx SDK**:
 
 ```json
 {
     "apiBaseUrl": "https://api.technyx.tools/api/v1",
     "tokenRefreshMarginSeconds": 300,
-    "encryptionSalt": "TnxOneSdkSalt2026",
+    "encryptionSalt": "TnxSdkSalt2026",
     "requestTimeoutSeconds": 30
 }
 ```
 
-To override the package default, create your own `Assets/Resources/OneConfig.json`.
+To override the package default, create your own `Assets/Resources/TechnyxConfig.json`.
 
 ## Features
 
@@ -74,10 +74,10 @@ To override the package default, create your own `Assets/Resources/OneConfig.jso
 ## Architecture
 
 ```
-OneServices (singleton, auto-init)
-├── Auth        – AuthService (login, logout, refresh, state management)
-├── Http        – ApiClient (typed async requests, Bearer token, 401 retry)
-├── Config      – OneConfig + OneConfigLoader (JSON from Resources)
+TechnyxSdk (singleton, auto-init)
+├── Auth         – AuthService (login, logout, refresh, state management)
+├── Http         – ApiClient (typed async requests, Bearer token, 401 retry)
+├── Config       – SdkConfig + SdkConfigLoader (JSON from Resources)
 └── TokenStorage – AES-256 encrypted PlayerPrefs
 ```
 

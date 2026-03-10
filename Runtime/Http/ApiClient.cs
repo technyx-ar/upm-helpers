@@ -3,21 +3,21 @@ using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using Technyx.One.Auth;
-using Technyx.One.Config;
+using Technyx.Sdk.Auth;
+using Technyx.Sdk.Config;
 using UnityEngine;
 using UnityEngine.Networking;
 
-namespace Technyx.One.Http
+namespace Technyx.Sdk.Http
 {
     public class ApiClient
     {
-        private readonly OneConfig _config;
+        private readonly SdkConfig _config;
         private readonly TokenStorage _tokenStorage;
 
         private Func<Task<bool>> _onUnauthorized;
 
-        public ApiClient(OneConfig config, TokenStorage tokenStorage)
+        public ApiClient(SdkConfig config, TokenStorage tokenStorage)
         {
             _config = config;
             _tokenStorage = tokenStorage;
@@ -121,7 +121,7 @@ namespace Technyx.One.Http
             }
             catch (Exception e)
             {
-                Debug.LogWarning($"[Technyx.One] Failed to deserialize response: {e.Message}");
+                Debug.LogWarning($"[Technyx.Sdk] Failed to deserialize response: {e.Message}");
                 return default;
             }
         }

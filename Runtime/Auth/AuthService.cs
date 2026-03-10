@@ -1,18 +1,18 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Technyx.One.Config;
-using Technyx.One.Http;
-using Technyx.One.Models;
+using Technyx.Sdk.Config;
+using Technyx.Sdk.Http;
+using Technyx.Sdk.Models;
 using UnityEngine;
 
-namespace Technyx.One.Auth
+namespace Technyx.Sdk.Auth
 {
     public class AuthService
     {
         private readonly ApiClient _http;
         private readonly TokenStorage _tokenStorage;
-        private readonly OneConfig _config;
+        private readonly SdkConfig _config;
 
         private CancellationTokenSource _refreshCts;
         private readonly SemaphoreSlim _refreshLock = new(1, 1);
@@ -23,7 +23,7 @@ namespace Technyx.One.Auth
         public UserData CurrentUser { get; private set; }
         public bool IsAuthenticated => CurrentState == AuthState.Authenticated;
 
-        public AuthService(ApiClient http, TokenStorage tokenStorage, OneConfig config)
+        public AuthService(ApiClient http, TokenStorage tokenStorage, SdkConfig config)
         {
             _http = http;
             _tokenStorage = tokenStorage;
@@ -144,7 +144,7 @@ namespace Technyx.One.Auth
                 await Task.Delay(delay, ct);
                 if (!ct.IsCancellationRequested)
                 {
-                    Debug.Log("[Technyx.One] Auto-refreshing token...");
+                    Debug.Log("[Technyx.Sdk] Auto-refreshing token...");
                     await RefreshAsync();
                 }
             }

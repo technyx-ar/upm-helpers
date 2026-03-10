@@ -1,10 +1,10 @@
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Technyx.One.Auth;
-using Technyx.One.Config;
-using Technyx.One.Http;
+using Technyx.Sdk.Auth;
+using Technyx.Sdk.Config;
+using Technyx.Sdk.Http;
 
-namespace Technyx.One.Tests
+namespace Technyx.Sdk.Tests
 {
     [TestFixture]
     public class AuthServiceTests
@@ -12,12 +12,12 @@ namespace Technyx.One.Tests
         private AuthService _authService;
         private TokenStorage _tokenStorage;
         private ApiClient _apiClient;
-        private OneConfig _config;
+        private SdkConfig _config;
 
         [SetUp]
         public void SetUp()
         {
-            _config = new OneConfig
+            _config = new SdkConfig
             {
                 apiBaseUrl = "https://localhost/api/v1",
                 tokenRefreshMarginSeconds = 300,

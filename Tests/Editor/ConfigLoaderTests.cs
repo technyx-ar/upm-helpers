@@ -1,7 +1,7 @@
 using NUnit.Framework;
-using Technyx.One.Config;
+using Technyx.Sdk.Config;
 
-namespace Technyx.One.Tests.Editor
+namespace Technyx.Sdk.Tests.Editor
 {
     [TestFixture]
     public class ConfigLoaderTests
@@ -9,13 +9,13 @@ namespace Technyx.One.Tests.Editor
         [TearDown]
         public void TearDown()
         {
-            OneConfigLoader.Reset();
+            SdkConfigLoader.Reset();
         }
 
         [Test]
         public void Load_ReturnsConfig()
         {
-            var config = OneConfigLoader.Load();
+            var config = SdkConfigLoader.Load();
             Assert.IsNotNull(config);
             Assert.IsFalse(string.IsNullOrEmpty(config.apiBaseUrl));
         }
@@ -23,7 +23,7 @@ namespace Technyx.One.Tests.Editor
         [Test]
         public void Load_DefaultValues_AreReasonable()
         {
-            var config = OneConfigLoader.Load();
+            var config = SdkConfigLoader.Load();
             Assert.Greater(config.tokenRefreshMarginSeconds, 0);
             Assert.Greater(config.requestTimeoutSeconds, 0);
             Assert.IsFalse(string.IsNullOrEmpty(config.encryptionSalt));
@@ -32,21 +32,21 @@ namespace Technyx.One.Tests.Editor
         [Test]
         public void Override_ReplacesConfig()
         {
-            var custom = new OneConfig { apiBaseUrl = "https://custom.example.com" };
-            OneConfigLoader.Override(custom);
+            var custom = new SdkConfig { apiBaseUrl = "https://custom.example.com" };
+            SdkConfigLoader.Override(custom);
 
-            var loaded = OneConfigLoader.Load();
+            var loaded = SdkConfigLoader.Load();
             Assert.AreEqual("https://custom.example.com", loaded.apiBaseUrl);
         }
 
         [Test]
         public void Reset_ClearsCache()
         {
-            var custom = new OneConfig { apiBaseUrl = "https://override.example.com" };
-            OneConfigLoader.Override(custom);
-            OneConfigLoader.Reset();
+            var custom = new SdkConfig { apiBaseUrl = "https://override.example.com" };
+            SdkConfigLoader.Override(custom);
+            SdkConfigLoader.Reset();
 
-            var loaded = OneConfigLoader.Load();
+            var loaded = SdkConfigLoader.Load();
             // After reset, reloads from Resources (default), not the override
             Assert.AreNotEqual("https://override.example.com", loaded.apiBaseUrl);
         }

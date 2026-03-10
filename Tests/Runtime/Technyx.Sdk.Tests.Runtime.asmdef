@@ -1,8 +1,8 @@
 {
-    "name": "Technyx.One.Tests.Runtime",
-    "rootNamespace": "Technyx.One.Tests",
+    "name": "Technyx.Sdk.Tests.Runtime",
+    "rootNamespace": "Technyx.Sdk.Tests",
     "references": [
-        "Technyx.One.Runtime",
+        "Technyx.Sdk.Runtime",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

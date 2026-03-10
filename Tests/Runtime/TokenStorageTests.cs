@@ -1,8 +1,8 @@
 using System;
 using NUnit.Framework;
-using Technyx.One.Auth;
+using Technyx.Sdk.Auth;
 
-namespace Technyx.One.Tests
+namespace Technyx.Sdk.Tests
 {
     [TestFixture]
     public class TokenStorageTests

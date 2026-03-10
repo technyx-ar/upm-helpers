@@ -1,24 +1,24 @@
 using System.IO;
 using Newtonsoft.Json;
-using Technyx.One.Config;
+using Technyx.Sdk.Config;
 using UnityEditor;
 using UnityEngine;
 
-namespace Technyx.One.Editor
+namespace Technyx.Sdk.Editor
 {
-    public static class OneSettingsProvider
+    public static class SdkSettingsProvider
     {
-        private static OneConfig _config;
+        private static SdkConfig _config;
         private static string _configPath;
 
         [SettingsProvider]
         public static SettingsProvider CreateProvider()
         {
-            return new SettingsProvider("Project/Technyx One", SettingsScope.Project)
+            return new SettingsProvider("Project/Technyx SDK", SettingsScope.Project)
             {
-                label = "Technyx One",
+                label = "Technyx SDK",
                 guiHandler = OnGUI,
-                keywords = new[] { "technyx", "one", "api", "auth", "token" },
+                keywords = new[] { "technyx", "sdk", "api", "auth", "token" },
             };
         }
 
@@ -31,11 +31,11 @@ namespace Technyx.One.Editor
             if (_configPath != null)
             {
                 var json = File.ReadAllText(_configPath);
-                _config = JsonConvert.DeserializeObject<OneConfig>(json) ?? new OneConfig();
+                _config = JsonConvert.DeserializeObject<SdkConfig>(json) ?? new SdkConfig();
             }
             else
             {
-                _config = new OneConfig();
+                _config = new SdkConfig();
             }
         }
 
@@ -44,7 +44,7 @@ namespace Technyx.One.Editor
             EnsureLoaded();
 
             EditorGUILayout.Space(10);
-            EditorGUILayout.LabelField("Technyx One SDK Configuration", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("Technyx SDK Configuration", EditorStyles.boldLabel);
             EditorGUILayout.Space(5);
 
             _config.apiBaseUrl = EditorGUILayout.TextField("API Base URL", _config.apiBaseUrl);
@@ -68,22 +68,22 @@ namespace Technyx.One.Editor
                 if (!Directory.Exists(dir))
                     Directory.CreateDirectory(dir);
 
-                _configPath = Path.Combine(dir, "OneConfig.json");
+                _configPath = Path.Combine(dir, "TechnyxConfig.json");
             }
 
             var json = JsonConvert.SerializeObject(_config, Formatting.Indented);
             File.WriteAllText(_configPath, json);
             AssetDatabase.Refresh();
-            Debug.Log("[Technyx.One] Configuration saved to " + _configPath);
+            Debug.Log("[Technyx.Sdk] Configuration saved to " + _configPath);
         }
 
         private static string FindConfigPath()
         {
-            var guids = AssetDatabase.FindAssets("OneConfig t:TextAsset");
+            var guids = AssetDatabase.FindAssets("TechnyxConfig t:TextAsset");
             foreach (var guid in guids)
             {
                 var path = AssetDatabase.GUIDToAssetPath(guid);
-                if (path.EndsWith("OneConfig.json"))
+                if (path.EndsWith("TechnyxConfig.json"))
                     return path;
             }
 

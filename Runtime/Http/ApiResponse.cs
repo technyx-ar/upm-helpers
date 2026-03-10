@@ -1,4 +1,4 @@
-namespace Technyx.One.Http
+namespace Technyx.Sdk.Http
 {
     public class ApiResponse<T>
     {

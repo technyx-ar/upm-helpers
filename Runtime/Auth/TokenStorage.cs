@@ -4,7 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using UnityEngine;
 
-namespace Technyx.One.Auth
+namespace Technyx.Sdk.Auth
 {
     public class TokenStorage
     {

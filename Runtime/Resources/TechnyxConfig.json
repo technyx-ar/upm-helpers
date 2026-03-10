@@ -1,6 +1,6 @@
 {
     "apiBaseUrl": "https://api.technyx.tools/api/v1",
     "tokenRefreshMarginSeconds": 300,
-    "encryptionSalt": "TnxOneSdkSalt2026",
+    "encryptionSalt": "TnxSdkSalt2026",
     "requestTimeoutSeconds": 30
 }

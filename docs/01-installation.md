@@ -19,6 +19,6 @@ git@github.com:technyx-ar/upm-helpers.git
 
 ## Verify Installation
 
-After importing, you should see **Technyx One SDK** in the Package Manager list. The SDK auto-initializes at runtime – no manual setup required.
+After importing, you should see **Technyx SDK** in the Package Manager list. The SDK auto-initializes at runtime – no manual setup required.
 
-To configure the API URL, go to **Edit > Project Settings > Technyx One**.
+To configure the API URL, go to **Edit > Project Settings > Technyx SDK**.

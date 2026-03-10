@@ -1,16 +1,16 @@
-using Technyx.One.Auth;
-using Technyx.One.Config;
-using Technyx.One.Http;
+using Technyx.Sdk.Auth;
+using Technyx.Sdk.Config;
+using Technyx.Sdk.Http;
 using UnityEngine;
 
-namespace Technyx.One
+namespace Technyx.Sdk
 {
-    public class OneServices : MonoBehaviour
+    public class TechnyxSdk : MonoBehaviour
     {
-        public static OneServices Instance { get; private set; }
+        public static TechnyxSdk Instance { get; private set; }
         public static AuthService Auth { get; private set; }
         public static ApiClient Http { get; private set; }
-        public static OneConfig Config { get; private set; }
+        public static SdkConfig Config { get; private set; }
         public static TokenStorage TokenStorage { get; private set; }
 
         public static bool IsInitialized => Instance != null;
@@ -21,18 +21,18 @@ namespace Technyx.One
             if (Instance != null)
                 return;
 
-            var go = new GameObject("[Technyx.One]");
+            var go = new GameObject("[Technyx.Sdk]");
             DontDestroyOnLoad(go);
-            Instance = go.AddComponent<OneServices>();
+            Instance = go.AddComponent<TechnyxSdk>();
 
-            Config = OneConfigLoader.Load();
+            Config = SdkConfigLoader.Load();
             TokenStorage = new TokenStorage(Config.encryptionSalt);
             Http = new ApiClient(Config, TokenStorage);
             Auth = new AuthService(Http, TokenStorage, Config);
 
             Auth.RestoreSession();
 
-            Debug.Log($"[Technyx.One] Initialized. API: {Config.apiBaseUrl}");
+            Debug.Log($"[Technyx.Sdk] Initialized. API: {Config.apiBaseUrl}");
         }
 
         private void OnDestroy()

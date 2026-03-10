@@ -1,27 +1,27 @@
 # HTTP Client
 
-The `ApiClient` provides typed async HTTP methods. Access it via `OneServices.Http`. It automatically attaches the Bearer token and handles the `{ "data": ... }` response envelope.
+The `ApiClient` provides typed async HTTP methods. Access it via `TechnyxSdk.Http`. It automatically attaches the Bearer token and handles the `{ "data": ... }` response envelope.
 
 ## Making Requests
 
 ```csharp
-using Technyx.One;
-using Technyx.One.Http;
+using Technyx.Sdk;
+using Technyx.Sdk.Http;
 
 // GET
-var response = await OneServices.Http.GetAsync<MyModel>("some/endpoint");
+var response = await TechnyxSdk.Http.GetAsync<MyModel>("some/endpoint");
 
 // POST
-var response = await OneServices.Http.PostAsync<MyModel>("some/endpoint", new { name = "test" });
+var response = await TechnyxSdk.Http.PostAsync<MyModel>("some/endpoint", new { name = "test" });
 
 // PUT
-var response = await OneServices.Http.PutAsync<MyModel>("some/endpoint", requestBody);
+var response = await TechnyxSdk.Http.PutAsync<MyModel>("some/endpoint", requestBody);
 
 // PATCH
-var response = await OneServices.Http.PatchAsync<MyModel>("some/endpoint", partialData);
+var response = await TechnyxSdk.Http.PatchAsync<MyModel>("some/endpoint", partialData);
 
 // DELETE
-var response = await OneServices.Http.DeleteAsync("some/endpoint");
+var response = await TechnyxSdk.Http.DeleteAsync("some/endpoint");
 ```
 
 ## Response Handling
@@ -29,7 +29,7 @@ var response = await OneServices.Http.DeleteAsync("some/endpoint");
 Every request returns `ApiResponse<T>`:
 
 ```csharp
-var response = await OneServices.Http.GetAsync<List<ItemData>>("items");
+var response = await TechnyxSdk.Http.GetAsync<List<ItemData>>("items");
 
 if (response.IsSuccess)
 {
@@ -76,5 +76,5 @@ Paths are relative to the `apiBaseUrl` from config. No leading slash needed:
 ```csharp
 // Config: apiBaseUrl = "https://api.technyx.tools/api/v1"
 // This calls: https://api.technyx.tools/api/v1/teams/abc123/members
-await OneServices.Http.GetAsync<List<Member>>("teams/abc123/members");
+await TechnyxSdk.Http.GetAsync<List<Member>>("teams/abc123/members");
 ```

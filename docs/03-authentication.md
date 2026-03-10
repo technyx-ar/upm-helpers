@@ -1,13 +1,13 @@
 # Authentication
 
-The `AuthService` handles login, logout, token refresh, and session restoration. Access it via `OneServices.Auth`.
+The `AuthService` handles login, logout, token refresh, and session restoration. Access it via `TechnyxSdk.Auth`.
 
 ## Login
 
 ```csharp
-using Technyx.One;
+using Technyx.Sdk;
 
-var result = await OneServices.Auth.LoginAsync("user@example.com", "password123");
+var result = await TechnyxSdk.Auth.LoginAsync("user@example.com", "password123");
 
 if (result.IsSuccess)
 {
@@ -45,7 +45,7 @@ public class LoginResponse
 ## Logout
 
 ```csharp
-bool success = await OneServices.Auth.LogoutAsync();
+bool success = await TechnyxSdk.Auth.LogoutAsync();
 ```
 
 Revokes the token on the server, clears local storage, and sets state to `Anonymous`.
@@ -55,7 +55,7 @@ Revokes the token on the server, clears local storage, and sets state to `Anonym
 Tokens refresh automatically before expiry. You can also trigger it manually:
 
 ```csharp
-var result = await OneServices.Auth.RefreshAsync();
+var result = await TechnyxSdk.Auth.RefreshAsync();
 
 if (result.IsSuccess)
     Debug.Log("Token refreshed successfully.");
@@ -64,7 +64,7 @@ if (result.IsSuccess)
 ## Get Current User
 
 ```csharp
-var result = await OneServices.Auth.GetCurrentUserAsync();
+var result = await TechnyxSdk.Auth.GetCurrentUserAsync();
 
 if (result.IsSuccess)
 {
@@ -92,16 +92,16 @@ public class UserData
 
 ```csharp
 // Quick check
-if (OneServices.Auth.IsAuthenticated)
+if (TechnyxSdk.Auth.IsAuthenticated)
 {
     // User is logged in
 }
 
 // Current state enum
-AuthState state = OneServices.Auth.CurrentState;
+AuthState state = TechnyxSdk.Auth.CurrentState;
 
 // Cached user (from last login or GetCurrentUserAsync)
-UserData user = OneServices.Auth.CurrentUser;
+UserData user = TechnyxSdk.Auth.CurrentUser;
 ```
 
 ## Session Restoration

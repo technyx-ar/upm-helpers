@@ -1,6 +1,6 @@
 {
-    "name": "Technyx.One.Runtime",
-    "rootNamespace": "Technyx.One",
+    "name": "Technyx.Sdk.Runtime",
+    "rootNamespace": "Technyx.Sdk",
     "references": [
         "Newtonsoft.Json"
     ],

@@ -23,21 +23,21 @@ Auth tokens are encrypted with AES-256-CBC before being saved to `PlayerPrefs`. 
 In most cases you won't need these – `AuthService` handles storage automatically.
 
 ```csharp
-using Technyx.One;
+using Technyx.Sdk;
 
 // Check if a token exists
-var token = OneServices.TokenStorage.Load();
+var token = TechnyxSdk.TokenStorage.Load();
 if (token != null)
 {
     Debug.Log($"Token expires: {token.ExpiresAt}");
 }
 
 // Clear stored token (without server logout)
-OneServices.TokenStorage.Clear();
+TechnyxSdk.TokenStorage.Clear();
 ```
 
 ## Security Considerations
 
-- The encryption salt should be unique per project. Change it from the default in `OneConfig.json`.
+- The encryption salt should be unique per project. Change it from the default in `TechnyxConfig.json`.
 - `PlayerPrefs` on some platforms (Windows) stores data in the registry or plain files. The AES encryption adds a layer of protection, but it is not equivalent to a hardware-backed keystore.
 - For highest security on Android, consider extending `TokenStorage` to use the Android Keystore. The current implementation is a practical default that works across all Unity platforms including Quest.

@@ -14,17 +14,17 @@
 Subscribe to `OnAuthStateChanged` to react to auth transitions:
 
 ```csharp
-using Technyx.One;
-using Technyx.One.Auth;
+using Technyx.Sdk;
+using Technyx.Sdk.Auth;
 
 void Start()
 {
-    OneServices.Auth.OnAuthStateChanged += HandleAuthStateChanged;
+    TechnyxSdk.Auth.OnAuthStateChanged += HandleAuthStateChanged;
 }
 
 void OnDestroy()
 {
-    OneServices.Auth.OnAuthStateChanged -= HandleAuthStateChanged;
+    TechnyxSdk.Auth.OnAuthStateChanged -= HandleAuthStateChanged;
 }
 
 private void HandleAuthStateChanged(AuthState oldState, AuthState newState)
