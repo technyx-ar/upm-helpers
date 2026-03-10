@@ -25,10 +25,10 @@ namespace Technyx.Sdk.Devices
             query.Append(page);
 
             if (!string.IsNullOrEmpty(type))
-                query.Append("&type=").Append(type);
+                query.Append("&type=").Append(UnityWebRequest.EscapeURL(type));
 
             if (!string.IsNullOrEmpty(status))
-                query.Append("&status=").Append(status);
+                query.Append("&status=").Append(UnityWebRequest.EscapeURL(status));
 
             if (!string.IsNullOrEmpty(search))
                 query.Append("&search=").Append(UnityWebRequest.EscapeURL(search));
@@ -66,7 +66,7 @@ namespace Technyx.Sdk.Devices
             return _http.GetAsync<DeviceConfig>($"devices/{deviceId}/config");
         }
 
-        public Task<ApiResponse<DeviceData>> UpdateConfigAsync(string deviceId, DeviceConfig config)
+        public Task<ApiResponse<DeviceData>> UpdateConfigAsync(string deviceId, UpdateDeviceConfigRequest config)
         {
             return _http.PatchAsync<DeviceData>($"devices/{deviceId}/config", config);
         }

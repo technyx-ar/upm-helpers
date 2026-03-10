@@ -11,5 +11,8 @@ namespace Technyx.Sdk.Models
 
         [JsonProperty("status")]
         public string Status;
+
+        [JsonProperty("user_id")]
+        public string UserId;
     }
 }
