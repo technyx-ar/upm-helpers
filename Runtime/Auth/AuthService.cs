@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Threading;
 using System.Threading.Tasks;
 using Technyx.Sdk.Config;
@@ -14,7 +15,7 @@ namespace Technyx.Sdk.Auth
         private readonly TokenStorage _tokenStorage;
         private readonly SdkConfig _config;
 
-        private CancellationTokenSource _refreshCts;
+        private Coroutine _refreshCoroutine;
         private readonly SemaphoreSlim _refreshLock = new(1, 1);
 
         public event Action<AuthState, AuthState> OnAuthStateChanged;
@@ -128,37 +129,39 @@ namespace Technyx.Sdk.Auth
         private void ScheduleRefresh(DateTime expiresAt)
         {
             CancelScheduledRefresh();
-            _refreshCts = new CancellationTokenSource();
 
             var delay = expiresAt - DateTime.UtcNow - TimeSpan.FromSeconds(_config.tokenRefreshMarginSeconds);
-            if (delay <= TimeSpan.Zero)
+            if (delay.TotalSeconds < 5)
                 delay = TimeSpan.FromSeconds(5);
 
-            _ = RunScheduledRefresh(delay, _refreshCts.Token);
+            var instance = TechnyxSdk.Instance;
+            if (instance != null)
+                _refreshCoroutine = instance.StartCoroutine(RunScheduledRefresh((float)delay.TotalSeconds));
         }
 
-        private async Task RunScheduledRefresh(TimeSpan delay, CancellationToken ct)
+        private IEnumerator RunScheduledRefresh(float delaySeconds)
         {
-            try
-            {
-                await Task.Delay(delay, ct);
-                if (!ct.IsCancellationRequested)
-                {
-                    Debug.Log("[Technyx.Sdk] Auto-refreshing token...");
-                    await RefreshAsync();
-                }
-            }
-            catch (TaskCanceledException)
-            {
-                // Expected on cancellation
-            }
+            yield return new WaitForSecondsRealtime(delaySeconds);
+
+            Debug.Log("[Technyx.Sdk] Auto-refreshing token...");
+            var task = RefreshAsync();
+
+            while (!task.IsCompleted)
+                yield return null;
+
+            if (task.IsFaulted)
+                Debug.LogException(task.Exception);
         }
 
         private void CancelScheduledRefresh()
         {
-            _refreshCts?.Cancel();
-            _refreshCts?.Dispose();
-            _refreshCts = null;
+            if (_refreshCoroutine != null)
+            {
+                var instance = TechnyxSdk.Instance;
+                if (instance != null)
+                    instance.StopCoroutine(_refreshCoroutine);
+                _refreshCoroutine = null;
+            }
         }
 
         private void SetState(AuthState newState)
