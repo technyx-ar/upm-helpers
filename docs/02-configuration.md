@@ -6,7 +6,7 @@ The SDK reads configuration from `Resources/TechnyxConfig.json`. A default confi
 
 ```json
 {
-    "apiBaseUrl": "https://api.technyx.tools/api/v1",
+    "apiBaseUrl": "https://api.prod.technyx.ar/api/v1",
     "tokenRefreshMarginSeconds": 300,
     "encryptionSalt": "TnxSdkSalt2026",
     "requestTimeoutSeconds": 30
@@ -17,7 +17,7 @@ The SDK reads configuration from `Resources/TechnyxConfig.json`. A default confi
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `apiBaseUrl` | string | `https://api.technyx.tools/api/v1` | Base URL for all API requests. No trailing slash. |
+| `apiBaseUrl` | string | `https://api.prod.technyx.ar/api/v1` | Base URL for all API requests. No trailing slash. |
 | `tokenRefreshMarginSeconds` | int | `300` | Seconds before token expiry to trigger auto-refresh. |
 | `encryptionSalt` | string | `TnxSdkSalt2026` | Salt used for encrypting stored tokens. Change per project. |
 | `requestTimeoutSeconds` | int | `30` | HTTP request timeout. |

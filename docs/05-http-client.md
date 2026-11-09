@@ -74,7 +74,7 @@ This happens transparently – no extra code needed.
 Paths are relative to the `apiBaseUrl` from config. No leading slash needed:
 
 ```csharp
-// Config: apiBaseUrl = "https://api.technyx.tools/api/v1"
-// This calls: https://api.technyx.tools/api/v1/teams/abc123/members
+// Config: apiBaseUrl = "https://api.prod.technyx.ar/api/v1"
+// This calls: https://api.prod.technyx.ar/api/v1/teams/abc123/members
 await TechnyxSdk.Http.GetAsync<List<Member>>("teams/abc123/members");
 ```

@@ -69,7 +69,7 @@ Edit `Resources/TechnyxConfig.json` or use **Edit > Project Settings > Technyx S
 
 ```json
 {
-    "apiBaseUrl": "https://api.technyx.tools/api/v1",
+    "apiBaseUrl": "https://api.prod.technyx.ar/api/v1",
     "tokenRefreshMarginSeconds": 300,
     "encryptionSalt": "TnxSdkSalt2026",
     "requestTimeoutSeconds": 30
