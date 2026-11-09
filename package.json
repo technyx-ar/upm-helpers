@@ -1,8 +1,8 @@
 {
     "name": "ar.technyx.upm-helpers",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "displayName": "Technyx SDK",
-    "description": "Authentication, devices, teams, organizations, photos, AI chat and a typed API client for the Technyx AR/VR backend.",
+    "description": "Authentication, devices with automatic heartbeat, teams, organizations, photos, AI chat and admin AI usage, and a typed API client for the Technyx AR/VR backend.",
     "unity": "2022.3",
     "keywords": [
         "auth",

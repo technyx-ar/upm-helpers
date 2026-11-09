@@ -17,6 +17,8 @@ namespace Technyx.Sdk.Config
         public int maxRetryDelaySeconds = 30;
         public float refreshRetryBaseSeconds = 10f;
         public int refreshRetryMaxSeconds = 120;
+        public bool autoHeartbeat = false;
+        public int heartbeatIntervalSeconds = 300;
 
         public void Validate()
         {
@@ -55,6 +57,10 @@ namespace Technyx.Sdk.Config
 
             if (refreshRetryMaxSeconds < 1)
                 problems.Add("refreshRetryMaxSeconds must be at least 1");
+
+            if (heartbeatIntervalSeconds < Devices.HeartbeatService.MinIntervalSeconds
+                || heartbeatIntervalSeconds > Devices.HeartbeatService.MaxIntervalSeconds)
+                problems.Add($"heartbeatIntervalSeconds must be between {Devices.HeartbeatService.MinIntervalSeconds} and {Devices.HeartbeatService.MaxIntervalSeconds}");
 
             if (problems.Count > 0)
                 throw new InvalidOperationException("Invalid Technyx SDK configuration: " + string.Join("; ", problems) + ".");

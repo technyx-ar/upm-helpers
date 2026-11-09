@@ -29,13 +29,17 @@ namespace Technyx.Sdk.Tests
         private const string PhotoJson =
             "{\"id\":\"01P1\",\"name\":\"site_visit\",\"tags\":[{\"id\":\"01G1\",\"name\":\"roof\"}],"
             + "\"url\":\"https://s3.test/a.jpg\",\"preview\":\"https://s3.test/a-preview.jpg\",\"description\":\"north side\","
-            + "\"gps_lat\":48.1486,\"gps_lng\":17.1077,\"timestamp\":\"2026-03-17T10:00:00.000000Z\",\"user_id\":7,"
+            + "\"gps_lat\":48.1486,\"gps_lng\":17.1077,\"timestamp\":\"2026-03-17T10:00:00.000000Z\","
+            + "\"user\":\"01JQ6Z8M3K4N5P7R9S0T1V2W3X\",\"task\":\"01JQ6Z8M3K4N5P7R9S0T1V2W4Y\","
             + "\"meta\":{\"shift\":\"night\",\"floor\":3},\"created_at\":\"2026-03-17T10:00:01+00:00\",\"updated_at\":\"2026-03-17T10:00:02+00:00\"}";
+
+        private const string TaskUlid = "01JQ6Z8M3K4N5P7R9S0T1V2W4Y";
+        private const string UserUlid = "01JQ6Z8M3K4N5P7R9S0T1V2W3X";
 
         private static string Latin1(byte[] bytes) => Encoding.GetEncoding("ISO-8859-1").GetString(bytes);
 
         [Test]
-        public async Task List_ReadsThePaginatedPhotosAndIgnoresTheNumericUserId()
+        public async Task List_ReadsThePaginatedPhotosWithUserAndTaskUlids()
         {
             _api.Transport.Enqueue(200,
                 "{\"success\":true,\"data\":{\"data\":[" + PhotoJson + "],\"links\":{},"
@@ -56,8 +60,23 @@ namespace Technyx.Sdk.Tests
             Assert.AreEqual(48.1486, photo.GpsLat);
             Assert.AreEqual(17.1077, photo.GpsLng);
             Assert.AreEqual("2026-03-17T10:00:00.000000Z", photo.Timestamp);
+            Assert.AreEqual(UserUlid, photo.User);
+            Assert.AreEqual(TaskUlid, photo.Task);
             Assert.AreEqual("night", (string)photo.Meta["shift"]);
             Assert.AreEqual(3, (int)photo.Meta["floor"]);
+        }
+
+        [Test]
+        public async Task Get_PhotoWithoutATask_HasANullTask()
+        {
+            _api.Transport.Enqueue(200,
+                "{\"success\":true,\"data\":{\"id\":\"01P3\",\"name\":\"n\",\"user\":\"" + UserUlid + "\",\"task\":null,"
+                + "\"tags\":[],\"meta\":[]}}");
+
+            var response = await _service.GetAsync("01P3");
+
+            Assert.AreEqual(UserUlid, response.Data.User);
+            Assert.IsNull(response.Data.Task);
         }
 
         [Test]
@@ -84,9 +103,12 @@ namespace Technyx.Sdk.Tests
             await _service.ListAsync(2, new PhotoFilter
             {
                 Name = "site",
+                Task = TaskUlid,
+                User = UserUlid,
                 Description = "north side",
                 GpsLat = 48.1486,
                 GpsLng = 17.1077,
+                Radius = 250.5,
                 Timestamp = new DateTimeOffset(2026, 3, 17, 10, 0, 0, TimeSpan.Zero),
                 TimestampFrom = new DateTimeOffset(2026, 3, 1, 1, 0, 0, TimeSpan.FromHours(1)),
                 TimestampTo = new DateTimeOffset(2026, 3, 31, 0, 0, 0, TimeSpan.Zero),
@@ -94,7 +116,8 @@ namespace Technyx.Sdk.Tests
             });
 
             Assert.AreEqual(
-                "photos?page=2&name=site&description=north%20side&gps_lat=48.1486&gps_lng=17.1077"
+                "photos?page=2&name=site&task=" + TaskUlid + "&user=" + UserUlid
+                + "&description=north%20side&gps_lat=48.1486&gps_lng=17.1077&radius=250.5"
                 + "&timestamp=2026-03-17T10%3A00%3A00Z&timestamp_from=2026-03-01T00%3A00%3A00Z&timestamp_to=2026-03-31T00%3A00%3A00Z"
                 + "&meta%5Bfloor%5D=3&meta%5Bshift%5D=night",
                 _api.Url(0));
@@ -145,6 +168,7 @@ namespace Technyx.Sdk.Tests
             {
                 Name = "site_visit",
                 Description = "north side",
+                Task = TaskUlid,
                 Timestamp = new DateTimeOffset(2026, 3, 17, 11, 0, 0, TimeSpan.FromHours(1)),
                 GpsLat = 48.1486,
                 GpsLng = 17.1077,
@@ -175,7 +199,18 @@ namespace Technyx.Sdk.Tests
             Assert.AreEqual("roof", (string)json["tags"][0]);
             Assert.AreEqual("night", (string)json["shift"]);
             Assert.AreEqual(3, (int)json["floor"]);
-            Assert.IsNull(json["task_ulid"]);
+            Assert.AreEqual(TaskUlid, (string)json["task_ulid"]);
+        }
+
+        [Test]
+        public async Task Upload_TaskOfAnotherOrganization_ExposesTheFieldError()
+        {
+            _api.Transport.Enqueue(422, "{\"message\":\"The selected metadata.task ulid is invalid.\",\"errors\":{\"metadata.task_ulid\":[\"The selected metadata.task ulid is invalid.\"]}}");
+
+            var response = await _service.UploadAsync(new byte[] { 1 }, "a.png", "image/png", new PhotoMetadata { Task = TaskUlid });
+
+            Assert.AreEqual(ApiErrorCodes.ValidationError, response.Error.Code);
+            Assert.AreEqual(1, response.Error.GetFieldErrors("metadata.task_ulid").Count);
         }
 
         [Test]
@@ -285,20 +320,79 @@ namespace Technyx.Sdk.Tests
         }
 
         [Test]
-        public async Task Update_ForPhoto_CarriesTheCurrentMetaSoARenameKeepsIt()
+        public async Task Update_AssignedNulls_ClearDescriptionAndCoordinates()
         {
             _api.Transport.Enqueue(200, "{\"success\":true,\"data\":" + PhotoJson + "}");
+
+            await _service.UpdateAsync("01P1", new UpdatePhotoRequest { Description = null, GpsLat = null, GpsLng = null });
+
+            Assert.AreEqual("{\"metadata\":{\"description\":null,\"gps_lat\":null,\"gps_lng\":null}}", _api.Body(0));
+        }
+
+        [Test]
+        public async Task Update_AssignedValues_SendDescriptionAndCoordinates()
+        {
             _api.Transport.Enqueue(200, "{\"success\":true,\"data\":" + PhotoJson + "}");
 
-            var photo = (await _service.GetAsync("01P1")).Data;
-            var request = UpdatePhotoRequest.ForPhoto(photo);
-            request.Name = "renamed";
-            await _service.UpdateAsync("01P1", request);
+            await _service.UpdateAsync("01P1", new UpdatePhotoRequest { Description = "south side", GpsLat = 48.2, GpsLng = 17.2 });
 
-            var body = JObject.Parse(_api.Body(1));
-            Assert.AreEqual("renamed", (string)body["metadata"]["name"]);
-            Assert.AreEqual("night", (string)body["metadata"]["shift"]);
-            Assert.AreEqual(3, (int)body["metadata"]["floor"]);
+            Assert.AreEqual("{\"metadata\":{\"description\":\"south side\",\"gps_lat\":48.2,\"gps_lng\":17.2}}", _api.Body(0));
+        }
+
+        [Test]
+        public async Task Update_UnassignedFields_AreNotSent()
+        {
+            _api.Transport.Enqueue(200, "{\"success\":true,\"data\":" + PhotoJson + "}");
+
+            await _service.UpdateAsync("01P1", new UpdatePhotoRequest { Name = "only" });
+
+            Assert.AreEqual("{\"metadata\":{\"name\":\"only\"}}", _api.Body(0));
+        }
+
+        [Test]
+        public async Task Update_ExtraKeys_AreMergedAndANullValueRemovesTheKey()
+        {
+            _api.Transport.Enqueue(200, "{\"success\":true,\"data\":" + PhotoJson + "}");
+
+            await _service.UpdateAsync("01P1", new UpdatePhotoRequest
+            {
+                Extra = new Dictionary<string, object> { { "floor", 4 }, { "room", null } },
+            });
+
+            Assert.AreEqual("{\"metadata\":{\"floor\":4,\"room\":null}}", _api.Body(0));
+        }
+
+        [Test]
+        public async Task Update_ByAColleague_IsForbidden()
+        {
+            _api.Transport.Enqueue(403, "{\"message\":\"This action is unauthorized.\"}");
+
+            var response = await _service.UpdateAsync("01P1", new UpdatePhotoRequest { Name = "x" });
+
+            Assert.AreEqual(403, response.StatusCode);
+            Assert.AreEqual(ApiErrorCodes.Forbidden, response.Error.Code);
+        }
+
+        [Test]
+        public async Task Delete_OfAPhotoTheCallerCannotSee_IsNotFound()
+        {
+            _api.Transport.Enqueue(404, "{\"message\":\"No query results for model [Modules\\\\Media\\\\Models\\\\WorkMedia].\"}");
+
+            var response = await _service.DeleteAsync("01P1");
+
+            Assert.AreEqual(ApiErrorCodes.NotFound, response.Error.Code);
+        }
+
+        [Test]
+        public async Task List_NumericTaskFilter_IsRejectedByTheBackendWithFieldErrors()
+        {
+            _api.Transport.Enqueue(422, "{\"message\":\"The task field must be 26 characters.\",\"errors\":{\"task\":[\"The task field must be 26 characters.\"]}}");
+
+            var response = await _service.ListAsync(1, new PhotoFilter { Task = "1" });
+
+            Assert.AreEqual("photos?page=1&task=1", _api.Url(0));
+            Assert.AreEqual(ApiErrorCodes.ValidationError, response.Error.Code);
+            Assert.AreEqual(1, response.Error.GetFieldErrors("task").Count);
         }
 
         [Test]
@@ -323,12 +417,6 @@ namespace Technyx.Sdk.Tests
             var request = new UpdatePhotoRequest { Extra = new Dictionary<string, object> { { "gps_lat", 1.0 } } };
 
             Assert.Throws<ArgumentException>(() => _service.UpdateAsync("01P1", request));
-        }
-
-        [Test]
-        public void ForPhoto_NullPhoto_Throws()
-        {
-            Assert.Throws<ArgumentNullException>(() => UpdatePhotoRequest.ForPhoto(null));
         }
 
         [Test]

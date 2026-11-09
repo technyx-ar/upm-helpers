@@ -46,6 +46,10 @@ await TechnyxSdk.Devices.SendHeartbeatAsync(device.Data.Id, new HeartbeatRequest
     ConnectivityStatus = "wifi",
 });
 
+// Or let the SDK send it every few minutes (opt-in: "autoHeartbeat": true in the config)
+TechnyxSdk.Heartbeat.HeartbeatFailed += failure => Debug.LogWarning(failure.Error);
+TechnyxSdk.Heartbeat.Start(device.Data.Id);
+
 // Upload a photo
 var photo = await TechnyxSdk.Photos.UploadAsync(jpegBytes, "wing.jpg", "image/jpeg",
     new PhotoMetadata { Name = "Left wing", Tags = new List<string> { "inspection" } });
@@ -89,9 +93,11 @@ All fields (timeouts, retries, refresh back-off) are listed in [Configuration](d
 
 - **Authentication** – Login, logout, token refresh matching the Laravel Passport backend
 - **Device management** – Register, list, update, delete AR/VR devices with heartbeat telemetry and MDM-lite config
+- **Automatic heartbeat** – Opt-in loop with a telemetry callback, bounded back-off and a `HeartbeatFailed` event; stops on logout and quit
 - **Teams and organizations** – CRUD, partial team updates, organization settings and logo upload
 - **Photos** – Upload with metadata, filtered listing, update, delete
 - **AI chat** – One-shot and SSE-streamed answers, knowledge items with grounding and sources, stored conversations
+- **AI admin** – Usage statistics and audit log of the organization (`view-ai-audit` permission)
 - **Auto-refresh** – Tokens refresh automatically before expiry; a network or server failure keeps the session and retries with back-off, only a rejection by the server logs the user out
 - **401 retry** – Failed requests trigger a token refresh and retry once
 - **Retries and cancellation** – Bounded retries with back-off and `Retry-After`; every call accepts a `CancellationToken`
@@ -108,10 +114,12 @@ All fields (timeouts, retries, refresh back-off) are listed in [Configuration](d
 TechnyxSdk (singleton, auto-init)
 ├── Auth         – AuthService (login, logout, refresh, state management)
 ├── Devices      – DeviceService (CRUD, heartbeats, config)
+├── Heartbeat    – HeartbeatService (automatic heartbeat loop, opt-in)
 ├── Teams        – TeamService (CRUD)
 ├── Organizations – OrganizationService (CRUD, settings, logo)
 ├── Photos       – PhotoService (upload, list, update, delete)
 ├── Ai           – AiService (chat, SSE stream, conversations)
+├── AiAdmin      – AiAdminService (usage statistics, audit log)
 ├── Http         – ApiClient (typed async requests, Bearer token, 401 retry, retries, uploads, streams)
 ├── Config       – SdkConfig + SdkConfigLoader (code defaults, optional JSON from Resources)
 └── TokenStorage – encrypted and authenticated PlayerPrefs
@@ -159,3 +167,6 @@ Detailed docs in the [`docs/`](docs/) folder:
 | POST | `/ai/chat/stream` | Yes | Streamed AI answer (SSE) |
 | GET | `/ai/conversations` | Yes | List AI conversations |
 | GET, PATCH, DELETE | `/ai/conversations/{id}` | Yes | Get (with messages), update, delete a conversation |
+| GET | `/admin/ai/usage` | Yes | AI usage statistics of the organization (`view-ai-audit`) |
+| GET | `/admin/ai/audit` | Yes | List and filter the AI audit log (`view-ai-audit`) |
+| GET | `/admin/ai/audit/{id}` | Yes | One audit entry with its sources (`view-ai-audit`) |
