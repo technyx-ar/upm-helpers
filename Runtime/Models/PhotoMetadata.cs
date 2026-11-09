@@ -9,6 +9,10 @@ namespace Technyx.Sdk.Models
     {
         public string Name;
         public string Description;
+
+        // ULID of a task of the caller's organization; the backend answers 422 for any other task.
+        public string Task;
+
         public DateTimeOffset? Timestamp;
         public double? GpsLat;
         public double? GpsLng;
@@ -26,6 +30,9 @@ namespace Technyx.Sdk.Models
 
             if (Description != null)
                 payload["description"] = Description;
+
+            if (Task != null)
+                payload["task_ulid"] = Task;
 
             if (Timestamp != null)
                 payload["timestamp"] = QueryBuilder.FormatInstant(Timestamp.Value);

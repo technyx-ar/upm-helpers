@@ -14,6 +14,12 @@ namespace Technyx.Sdk.Models
         [JsonProperty("name")]
         public string Name;
 
+        [JsonProperty("user")]
+        public string User;
+
+        [JsonProperty("task")]
+        public string Task;
+
         [JsonProperty("tags")]
         public List<PhotoTagData> Tags;
 
