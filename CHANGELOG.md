@@ -24,7 +24,7 @@ Photos need technyx-backend PR #51 (stacked on PR #9), admin AI needs PR #29. Ag
 - `Start(deviceId)` sends a heartbeat at once and then one per interval, with a `TelemetryProvider` callback for the payload. With `autoHeartbeat` on, a successful `Devices.RegisterAsync` starts it for the new device.
 - Runs only while the user is logged in; stops on logout, on a lost session, on `403` / `404` for the device, on `TechnyxSdk.Configure` and when the app quits.
 - `HeartbeatFailed` is raised for every failed attempt (`ApiError`, status, consecutive failures, retry delay, whether the loop stopped); retries back off from 15 s up to the interval, with jitter and `Retry-After`.
-- `DeviceService.RegisterAsync` keeps its signature and result; after a successful registration it additionally notifies the heartbeat service (internal event).
+- `DeviceService.RegisterAsync` keeps its signature and result; after a successful registration it additionally notifies the heartbeat service (internal event). The method is now `async`, so an exception while serializing the request surfaces in the returned task instead of being thrown at the call.
 - Not built: configuration sync. The backend has no device-side configuration endpoint with versions and no commands in the heartbeat answer; `GetConfigAsync` stays manual, and `HeartbeatService.IntervalSeconds` applies a changed `heartbeat_interval_seconds`.
 
 ### Admin AI
