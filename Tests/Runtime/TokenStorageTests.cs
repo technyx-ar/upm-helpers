@@ -44,6 +44,16 @@ namespace Technyx.Sdk.Tests
         }
 
         [Test]
+        public void Load_ReturnsExpiryAsUtc()
+        {
+            _storage.Save("utc-token", DateTime.UtcNow.AddHours(24));
+
+            var loaded = _storage.Load();
+
+            Assert.AreEqual(DateTimeKind.Utc, loaded.ExpiresAt.Kind);
+        }
+
+        [Test]
         public void Save_OverwritesPrevious()
         {
             _storage.Save("first-token", DateTime.UtcNow.AddHours(1));

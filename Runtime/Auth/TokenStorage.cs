@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
@@ -38,7 +39,7 @@ namespace Technyx.Sdk.Auth
             try
             {
                 var token = Decrypt(encryptedToken);
-                var expiry = DateTime.Parse(Decrypt(encryptedExpiry));
+                var expiry = DateTime.Parse(Decrypt(encryptedExpiry), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
 
                 if (expiry <= DateTime.UtcNow)
                 {
