@@ -46,6 +46,12 @@ namespace Technyx.Sdk.Http
             return value == null ? this : Add(name, FormatInstant(value.Value));
         }
 
+        // The backend compares this string with created_at as it is and its time zone is UTC, so no zone suffix is sent.
+        internal QueryBuilder AddUtcDateTime(string name, DateTimeOffset? value)
+        {
+            return value == null ? this : Add(name, value.Value.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture));
+        }
+
         internal static string FormatInstant(DateTimeOffset value)
         {
             return value.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);

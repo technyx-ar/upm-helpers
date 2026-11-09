@@ -48,6 +48,12 @@ namespace Technyx.Sdk.Http
             return SendJsonAsync<T>("POST", path, body, cancellationToken);
         }
 
+        // For calls that wait on a model: uses streamTimeoutSeconds instead of requestTimeoutSeconds.
+        public Task<ApiResponse<T>> PostLongRunningAsync<T>(string path, object body = null, CancellationToken cancellationToken = default)
+        {
+            return SendJsonAsync<T>("POST", path, body, cancellationToken, _config.streamTimeoutSeconds);
+        }
+
         public Task<ApiResponse<T>> PutAsync<T>(string path, object body = null, CancellationToken cancellationToken = default)
         {
             return SendJsonAsync<T>("PUT", path, body, cancellationToken);
@@ -90,10 +96,16 @@ namespace Technyx.Sdk.Http
                 : ApiResponse<object>.Success(null, raw.StatusCode, raw.Body);
         }
 
-        private Task<ApiResponse<T>> SendJsonAsync<T>(string method, string path, object body, CancellationToken cancellationToken)
+        private Task<ApiResponse<T>> SendJsonAsync<T>(
+            string method,
+            string path,
+            object body,
+            CancellationToken cancellationToken,
+            int? timeoutSeconds = null)
         {
             var bytes = Serialize(body);
-            return SendAsync<T>(method, path, bytes, bytes != null ? JsonContentType : null, _config.requestTimeoutSeconds, cancellationToken);
+            return SendAsync<T>(
+                method, path, bytes, bytes != null ? JsonContentType : null, timeoutSeconds ?? _config.requestTimeoutSeconds, cancellationToken);
         }
 
         private static byte[] Serialize(object body)

@@ -1,4 +1,5 @@
 using System;
+using Technyx.Sdk.Ai;
 using Technyx.Sdk.Auth;
 using Technyx.Sdk.Config;
 using Technyx.Sdk.Devices;
@@ -17,6 +18,7 @@ namespace Technyx.Sdk
         public static TeamService Teams { get; private set; }
         public static OrganizationService Organizations { get; private set; }
         public static PhotoService Photos { get; private set; }
+        public static AiService Ai { get; private set; }
         public static ApiClient Http { get; private set; }
         public static SdkConfig Config { get; private set; }
         public static TokenStorage TokenStorage { get; private set; }
@@ -72,6 +74,7 @@ namespace Technyx.Sdk
             Teams = new TeamService(Http);
             Organizations = new OrganizationService(Http);
             Photos = new PhotoService(Http);
+            Ai = new AiService(Http);
         }
 
         private void OnDestroy()
