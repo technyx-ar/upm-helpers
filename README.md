@@ -1,6 +1,6 @@
 # Technyx SDK
 
-Unity Package Manager (UPM) package for Technyx AR/VR backend integration. Provides authentication, device management, token management, and a typed HTTP client.
+Unity Package Manager (UPM) package for Technyx AR/VR backend integration. Provides authentication, device, team, organization and photo management, AI chat with streaming, token management, and a typed HTTP client.
 
 ## Installation
 
@@ -46,6 +46,15 @@ await TechnyxSdk.Devices.SendHeartbeatAsync(device.Data.Id, new HeartbeatRequest
     ConnectivityStatus = "wifi",
 });
 
+// Upload a photo
+var photo = await TechnyxSdk.Photos.UploadAsync(jpegBytes, "wing.jpg", "image/jpeg",
+    new PhotoMetadata { Name = "Left wing", Tags = new List<string> { "inspection" } });
+
+// Ask the AI assistant and show the answer while it streams
+var answer = await TechnyxSdk.Ai.ChatStreamAsync(
+    new AiChatRequest { Message = "What is the propeller bolt torque?" },
+    chunk => label.text += chunk.Text);
+
 // Make authenticated API calls (Bearer token attached automatically)
 var data = await TechnyxSdk.Http.GetAsync<MyModel>("some/endpoint");
 
@@ -65,29 +74,32 @@ await TechnyxSdk.Auth.LogoutAsync();
 
 ## Configuration
 
-Edit `Resources/TechnyxConfig.json` or use **Edit > Project Settings > Technyx SDK**:
+The SDK works with its built-in defaults (`https://api.prod.technyx.ar/api/v1`). To change them, create `Assets/Resources/TechnyxConfig.json` or use **Edit > Project Settings > Technyx SDK**; fields you leave out keep their default:
 
 ```json
 {
     "apiBaseUrl": "https://api.prod.technyx.ar/api/v1",
-    "tokenRefreshMarginSeconds": 300,
-    "encryptionSalt": "TnxSdkSalt2026",
-    "requestTimeoutSeconds": 30
+    "encryptionSalt": "change-me-per-project"
 }
 ```
 
-To override the package default, create your own `Assets/Resources/TechnyxConfig.json`.
+All fields (timeouts, retries, refresh back-off) are listed in [Configuration](docs/02-configuration.md).
 
 ## Features
 
 - **Authentication** – Login, logout, token refresh matching the Laravel Passport backend
 - **Device management** – Register, list, update, delete AR/VR devices with heartbeat telemetry and MDM-lite config
-- **Auto-refresh** – Tokens refresh automatically before expiry
+- **Teams and organizations** – CRUD, partial team updates, organization settings and logo upload
+- **Photos** – Upload with metadata, filtered listing, update, delete
+- **AI chat** – One-shot and SSE-streamed answers, knowledge items with grounding and sources, stored conversations
+- **Auto-refresh** – Tokens refresh automatically before expiry; a network or server failure keeps the session and retries with back-off, only a rejection by the server logs the user out
 - **401 retry** – Failed requests trigger a token refresh and retry once
-- **Encrypted storage** – AES-256 encrypted tokens in PlayerPrefs
+- **Retries and cancellation** – Bounded retries with back-off and `Retry-After`; every call accepts a `CancellationToken`
+- **Typed errors** – `ApiError` with backend code, validation errors per field, `Retry-After`, details
+- **Protected storage** – Tokens in PlayerPrefs, AES-encrypted and authenticated with HMAC (tamper detection, not a keystore – see [Token Storage](docs/06-token-storage.md))
 - **Session restore** – Stored tokens are restored on app start
 - **State events** – Subscribe to `OnAuthStateChanged` for auth transitions
-- **Typed HTTP client** – `GetAsync<T>`, `PostAsync<T>`, `PutAsync<T>`, `PatchAsync<T>`, `DeleteAsync` with automatic `{ "data": ... }` envelope unwrapping
+- **Typed HTTP client** – `GetAsync<T>`, `PostAsync<T>`, `PutAsync<T>`, `PatchAsync<T>`, `DeleteAsync` with automatic `{ "data": ... }` envelope unwrapping, multipart uploads and streaming
 - **Pagination** – `PaginatedResponse<T>` for paginated API endpoints
 
 ## Architecture
@@ -96,9 +108,13 @@ To override the package default, create your own `Assets/Resources/TechnyxConfig
 TechnyxSdk (singleton, auto-init)
 ├── Auth         – AuthService (login, logout, refresh, state management)
 ├── Devices      – DeviceService (CRUD, heartbeats, config)
-├── Http         – ApiClient (typed async requests, Bearer token, 401 retry)
-├── Config       – SdkConfig + SdkConfigLoader (JSON from Resources)
-└── TokenStorage – AES-256 encrypted PlayerPrefs
+├── Teams        – TeamService (CRUD)
+├── Organizations – OrganizationService (CRUD, settings, logo)
+├── Photos       – PhotoService (upload, list, update, delete)
+├── Ai           – AiService (chat, SSE stream, conversations)
+├── Http         – ApiClient (typed async requests, Bearer token, 401 retry, retries, uploads, streams)
+├── Config       – SdkConfig + SdkConfigLoader (code defaults, optional JSON from Resources)
+└── TokenStorage – encrypted and authenticated PlayerPrefs
 ```
 
 ## Documentation
@@ -112,6 +128,9 @@ Detailed docs in the [`docs/`](docs/) folder:
 5. [HTTP Client](docs/05-http-client.md)
 6. [Token Storage & Security](docs/06-token-storage.md)
 7. [Devices](docs/07-devices.md)
+8. [Teams & Organizations](docs/08-teams.md)
+9. [Photos](docs/09-photos.md)
+10. [AI Chat](docs/10-ai.md)
 
 ## API Endpoints
 
@@ -129,3 +148,14 @@ Detailed docs in the [`docs/`](docs/) folder:
 | POST | `/devices/{id}/heartbeat` | Yes | Send heartbeat (rate-limited) |
 | GET | `/devices/{id}/config` | Yes | Get device config |
 | PATCH | `/devices/{id}/config` | Yes | Partial config update |
+| GET, POST | `/teams` | Yes | List teams, create a team |
+| GET, PATCH, DELETE | `/teams/{id}` | Yes | Get (with members), update, delete a team |
+| GET, POST | `/organizations` | Yes | List organizations, create one |
+| GET, PATCH, DELETE | `/organizations/{id}` | Yes | Get, update, delete an organization |
+| POST (`_method=PATCH`) | `/organizations/{id}` | Yes | Upload the organization logo (multipart) |
+| GET, POST | `/photos` | Yes | List and filter photos, upload a photo (multipart) |
+| GET, PATCH, DELETE | `/photos/{id}` | Yes | Get, update, delete a photo |
+| POST | `/ai/chat` | Yes | One-shot AI answer |
+| POST | `/ai/chat/stream` | Yes | Streamed AI answer (SSE) |
+| GET | `/ai/conversations` | Yes | List AI conversations |
+| GET, PATCH, DELETE | `/ai/conversations/{id}` | Yes | Get (with messages), update, delete a conversation |
