@@ -90,7 +90,12 @@ if (result.IsSuccess)
 | `LastPage` | int | Total number of pages |
 | `PerPage` | int | Items per page |
 | `Total` | int | Total item count |
+| `From` / `To` | int? | Index of the first and last item on the page, `null` for an empty page |
 | `HasMorePages` | bool | `true` if more pages exist |
+| `Links` | `PaginationLinks` | `First`, `Last`, `Prev`, `Next` page URLs |
+| `Meta` | `PaginationMeta` | Source of the page numbers above, as sent by the backend under `meta` |
+
+A list response without a complete `meta` object is returned as a `PARSE_ERROR`.
 
 ## Get Device Detail
 
@@ -128,6 +133,8 @@ var result = await TechnyxSdk.Devices.UpdateAsync(deviceId, new UpdateDeviceRequ
     UserId = "01JQUSERID0000000000000",
 });
 ```
+
+Fields you leave unset are not sent. The backend rejects an explicit `null` for `name`, `status` and `user_id` with a 422.
 
 ## Delete a Device
 
