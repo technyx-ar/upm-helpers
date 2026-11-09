@@ -52,6 +52,12 @@ namespace Technyx.Sdk.Http
             return value == null ? this : Add(name, value.Value.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture));
         }
 
+        // The admin AI endpoints append the time of day to the date themselves, so only the UTC date goes out.
+        internal QueryBuilder AddUtcDate(string name, DateTimeOffset? value)
+        {
+            return value == null ? this : Add(name, value.Value.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+        }
+
         internal static string FormatInstant(DateTimeOffset value)
         {
             return value.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);

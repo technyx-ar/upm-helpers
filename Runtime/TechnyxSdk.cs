@@ -19,6 +19,7 @@ namespace Technyx.Sdk
         public static OrganizationService Organizations { get; private set; }
         public static PhotoService Photos { get; private set; }
         public static AiService Ai { get; private set; }
+        public static AiAdminService AiAdmin { get; private set; }
         public static ApiClient Http { get; private set; }
         public static SdkConfig Config { get; private set; }
         public static TokenStorage TokenStorage { get; private set; }
@@ -75,6 +76,7 @@ namespace Technyx.Sdk
             Organizations = new OrganizationService(Http);
             Photos = new PhotoService(Http);
             Ai = new AiService(Http);
+            AiAdmin = new AiAdminService(Http);
         }
 
         private void OnDestroy()
