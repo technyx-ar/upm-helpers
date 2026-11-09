@@ -15,6 +15,7 @@ namespace Technyx.Sdk
         public static TechnyxSdk Instance { get; private set; }
         public static AuthService Auth { get; private set; }
         public static DeviceService Devices { get; private set; }
+        public static HeartbeatService Heartbeat { get; private set; }
         public static TeamService Teams { get; private set; }
         public static OrganizationService Organizations { get; private set; }
         public static PhotoService Photos { get; private set; }
@@ -57,6 +58,7 @@ namespace Technyx.Sdk
 
             config.Validate();
 
+            Heartbeat?.Shutdown();
             Auth?.Shutdown();
             SdkConfigLoader.Replace(config);
             Build(config);
@@ -72,6 +74,7 @@ namespace Technyx.Sdk
             Http = new ApiClient(config, TokenStorage);
             Auth = new AuthService(Http, TokenStorage, config);
             Devices = new DeviceService(Http);
+            Heartbeat = new HeartbeatService(Devices, Auth, config);
             Teams = new TeamService(Http);
             Organizations = new OrganizationService(Http);
             Photos = new PhotoService(Http);
@@ -79,11 +82,18 @@ namespace Technyx.Sdk
             AiAdmin = new AiAdminService(Http);
         }
 
+        private void OnApplicationQuit()
+        {
+            if (Instance == this)
+                Heartbeat?.Stop();
+        }
+
         private void OnDestroy()
         {
             if (Instance != this)
                 return;
 
+            Heartbeat?.Shutdown();
             Auth?.Shutdown();
             Instance = null;
         }

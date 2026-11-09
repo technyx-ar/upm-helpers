@@ -70,6 +70,11 @@ namespace Technyx.Sdk.Editor
             _config.refreshRetryBaseSeconds = EditorGUILayout.FloatField("Retry Base Delay (s)", _config.refreshRetryBaseSeconds);
             _config.refreshRetryMaxSeconds = EditorGUILayout.IntField("Retry Max Delay (s)", _config.refreshRetryMaxSeconds);
 
+            EditorGUILayout.Space(5);
+            EditorGUILayout.LabelField("Device heartbeat", EditorStyles.boldLabel);
+            _config.autoHeartbeat = EditorGUILayout.Toggle("Automatic Heartbeat", _config.autoHeartbeat);
+            _config.heartbeatIntervalSeconds = EditorGUILayout.IntField("Heartbeat Interval (s)", _config.heartbeatIntervalSeconds);
+
             EditorGUILayout.Space(10);
 
             if (GUILayout.Button("Save"))

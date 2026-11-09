@@ -46,6 +46,10 @@ await TechnyxSdk.Devices.SendHeartbeatAsync(device.Data.Id, new HeartbeatRequest
     ConnectivityStatus = "wifi",
 });
 
+// Or let the SDK send it every few minutes (opt-in: "autoHeartbeat": true in the config)
+TechnyxSdk.Heartbeat.HeartbeatFailed += failure => Debug.LogWarning(failure.Error);
+TechnyxSdk.Heartbeat.Start(device.Data.Id);
+
 // Upload a photo
 var photo = await TechnyxSdk.Photos.UploadAsync(jpegBytes, "wing.jpg", "image/jpeg",
     new PhotoMetadata { Name = "Left wing", Tags = new List<string> { "inspection" } });
@@ -89,6 +93,7 @@ All fields (timeouts, retries, refresh back-off) are listed in [Configuration](d
 
 - **Authentication** – Login, logout, token refresh matching the Laravel Passport backend
 - **Device management** – Register, list, update, delete AR/VR devices with heartbeat telemetry and MDM-lite config
+- **Automatic heartbeat** – Opt-in loop with a telemetry callback, bounded back-off and a `HeartbeatFailed` event; stops on logout and quit
 - **Teams and organizations** – CRUD, partial team updates, organization settings and logo upload
 - **Photos** – Upload with metadata, filtered listing, update, delete
 - **AI chat** – One-shot and SSE-streamed answers, knowledge items with grounding and sources, stored conversations
@@ -109,6 +114,7 @@ All fields (timeouts, retries, refresh back-off) are listed in [Configuration](d
 TechnyxSdk (singleton, auto-init)
 ├── Auth         – AuthService (login, logout, refresh, state management)
 ├── Devices      – DeviceService (CRUD, heartbeats, config)
+├── Heartbeat    – HeartbeatService (automatic heartbeat loop, opt-in)
 ├── Teams        – TeamService (CRUD)
 ├── Organizations – OrganizationService (CRUD, settings, logo)
 ├── Photos       – PhotoService (upload, list, update, delete)

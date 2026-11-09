@@ -17,6 +17,8 @@ The package ships no config file. `SdkConfig` carries the defaults, so the SDK w
 | `maxRetryDelaySeconds` | int | `30` | Upper bound of a backoff delay and of an accepted `Retry-After`. |
 | `refreshRetryBaseSeconds` | float | `10` | First delay before the background token refresh is tried again after a network or server failure. |
 | `refreshRetryMaxSeconds` | int | `120` | Upper bound of that delay. |
+| `autoHeartbeat` | bool | `false` | Opt-in for the automatic device heartbeat, see [Devices](07-devices.md#automatic-heartbeat). While it is off, `TechnyxSdk.Heartbeat.Start` throws. |
+| `heartbeatIntervalSeconds` | int | `300` | Seconds between two heartbeats. 60 to 3600, the range the backend accepts for a device's own `heartbeat_interval_seconds`. |
 
 A value outside its range makes loading throw `InvalidOperationException` with every problem listed.
 

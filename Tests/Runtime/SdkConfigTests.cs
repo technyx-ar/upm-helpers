@@ -74,6 +74,29 @@ namespace Technyx.Sdk.Tests
         }
 
         [Test]
+        public void Heartbeat_IsOffByDefaultWithAFiveMinuteInterval()
+        {
+            var config = new SdkConfig();
+
+            Assert.IsFalse(config.autoHeartbeat);
+            Assert.AreEqual(300, config.heartbeatIntervalSeconds);
+        }
+
+        [TestCase(59, false)]
+        [TestCase(60, true)]
+        [TestCase(3600, true)]
+        [TestCase(3601, false)]
+        public void HeartbeatInterval_FollowsTheBackendRange(int seconds, bool valid)
+        {
+            var config = new SdkConfig { heartbeatIntervalSeconds = seconds };
+
+            if (valid)
+                Assert.DoesNotThrow(() => config.Validate());
+            else
+                StringAssert.Contains("heartbeatIntervalSeconds", Assert.Throws<InvalidOperationException>(() => config.Validate()).Message);
+        }
+
+        [Test]
         public void NegativeRefreshMargin_IsRejected()
         {
             Assert.Throws<InvalidOperationException>(() => new SdkConfig { tokenRefreshMarginSeconds = -1 }.Validate());

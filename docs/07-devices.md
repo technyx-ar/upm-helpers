@@ -180,6 +180,45 @@ All heartbeat fields are optional. The endpoint is rate-limited to 12 requests p
 | `AppVersion` | string | No | Also updates device's app_version |
 | `Meta` | Dictionary | No | Arbitrary key-value telemetry |
 
+## Automatic Heartbeat
+
+`TechnyxSdk.Heartbeat` (`HeartbeatService`) sends the heartbeat for you while the app runs. It is opt-in: set `autoHeartbeat` to `true` in the [configuration](02-configuration.md) (**Project Settings > Technyx SDK > Automatic Heartbeat**), otherwise `Start` throws `InvalidOperationException`.
+
+```csharp
+using Technyx.Sdk;
+using Technyx.Sdk.Models;
+
+TechnyxSdk.Heartbeat.TelemetryProvider = () => new HeartbeatRequest
+{
+    // SystemInfo.batteryLevel is -1 where the platform has no battery API; the backend rejects negative values.
+    BatteryLevel = SystemInfo.batteryLevel >= 0f ? Mathf.RoundToInt(SystemInfo.batteryLevel * 100f) : (int?)null,
+    ConnectivityStatus = "wifi",
+    AppVersion = Application.version,
+};
+
+TechnyxSdk.Heartbeat.HeartbeatFailed += failure =>
+{
+    Debug.LogWarning($"Heartbeat {failure.ConsecutiveFailures} failed: {failure.Error}");
+    if (failure.Stopped)
+        ShowDeviceOfflineNotice();
+};
+
+// A device registered through Devices.RegisterAsync starts by itself. For a device you already have:
+TechnyxSdk.Heartbeat.Start(storedDeviceId);
+```
+
+- The SDK does not store the device id. After `RegisterAsync` succeeds the heartbeat starts for the new device on its own (only with `autoHeartbeat` on); after an app restart call `Start(deviceId)` with the id your app saved. `Start` replaces a running heartbeat.
+- The first heartbeat goes out at once, then one every `IntervalSeconds` (default `heartbeatIntervalSeconds`, 300). `IntervalSeconds` can be changed at runtime within 60 to 3600; it applies from the next wait.
+- `TelemetryProvider` is called before every heartbeat. Without one an empty heartbeat is sent, which still marks the device as active. An exception in the provider stops the loop and is reported through `HeartbeatFailed` (`Stopped`) and the Unity console.
+- It runs only while the user is logged in: `Start` throws before login, and the loop ends on logout and when the session is lost (`AuthState.Anonymous` or `AuthState.Error`). It also ends when the app quits and when `TechnyxSdk.Configure` rebuilds the services; call `Start` again on the new `TechnyxSdk.Heartbeat` after a reconfigure or a new login.
+- `HeartbeatSent` carries the stored heartbeat. `HeartbeatFailed` is raised for every failed attempt with the `ApiError`, the `StatusCode`, `ConsecutiveFailures` and `RetryInSeconds`. Subscriber exceptions are logged and do not stop the loop.
+- A failed heartbeat is retried after 15 seconds, doubling per consecutive failure (with up to 20 % jitter), and never later than the regular interval; a `Retry-After` of the server is honoured within that bound. The first success resets it.
+- `403` and `404` mean the device is not the caller's or no longer exists: the loop stops (`Stopped = true`) instead of retrying. A `422` (the telemetry was invalid) and every other failure keep the loop running.
+
+The SDK does not synchronize the device configuration on its own: the backend has no device-side configuration endpoint with versions and its heartbeat answer carries only the stored heartbeat, no commands. `GetConfigAsync` reads the device's configuration; to follow a `heartbeat_interval_seconds` that an administrator changed, apply it yourself: `TechnyxSdk.Heartbeat.IntervalSeconds = config.HeartbeatIntervalSeconds`.
+
+The loop is a `Task` that waits with `Task.Delay`, not a coroutine. When `Start` is called on Unity's main thread, its continuations and so the events run there.
+
 ## Device Config
 
 Each device has an MDM-lite configuration with defaults assigned on registration.
