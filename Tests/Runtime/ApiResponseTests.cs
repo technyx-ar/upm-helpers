@@ -37,5 +37,32 @@ namespace Technyx.Sdk.Tests
             Assert.IsFalse(response.IsSuccess);
             Assert.AreEqual("UNKNOWN", response.Error.Code);
         }
+
+        [Test]
+        public void IsCancelled_ReflectsTheCancelledCode()
+        {
+            var response = ApiResponse<string>.Fail(new ApiError { Code = ApiErrorCodes.Cancelled }, 0, "");
+
+            Assert.IsTrue(response.IsCancelled);
+            Assert.IsFalse(response.IsNetworkError);
+        }
+
+        [Test]
+        public void IsNetworkError_ReflectsTheNetworkCode()
+        {
+            var response = ApiResponse<string>.Fail(new ApiError { Code = ApiErrorCodes.NetworkError }, 0, "");
+
+            Assert.IsTrue(response.IsNetworkError);
+            Assert.IsFalse(response.IsCancelled);
+        }
+
+        [Test]
+        public void SuccessfulResponse_IsNeitherCancelledNorNetworkError()
+        {
+            var response = ApiResponse<string>.Success("x", 200, "");
+
+            Assert.IsFalse(response.IsCancelled);
+            Assert.IsFalse(response.IsNetworkError);
+        }
     }
 }

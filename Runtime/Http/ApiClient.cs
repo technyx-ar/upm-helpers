@@ -1,133 +1,233 @@
 using System;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Technyx.Sdk.Auth;
 using Technyx.Sdk.Config;
-using UnityEngine.Networking;
 
 namespace Technyx.Sdk.Http
 {
     public class ApiClient
     {
+        private const string JsonContentType = "application/json";
+
+        private static readonly Random Jitter = new Random();
+
         private readonly SdkConfig _config;
         private readonly TokenStorage _tokenStorage;
+        private readonly IHttpTransport _transport;
 
-        private Func<Task<bool>> _onUnauthorized;
+        private Func<string, Task<bool>> _onUnauthorized;
 
         public ApiClient(SdkConfig config, TokenStorage tokenStorage)
+            : this(config, tokenStorage, new UnityWebRequestTransport())
+        {
+        }
+
+        public ApiClient(SdkConfig config, TokenStorage tokenStorage, IHttpTransport transport)
         {
             _config = config;
             _tokenStorage = tokenStorage;
+            _transport = transport;
         }
 
-        internal void SetUnauthorizedHandler(Func<Task<bool>> handler)
+        internal void SetUnauthorizedHandler(Func<string, Task<bool>> handler)
         {
             _onUnauthorized = handler;
         }
 
-        public Task<ApiResponse<T>> GetAsync<T>(string path)
+        public Task<ApiResponse<T>> GetAsync<T>(string path, CancellationToken cancellationToken = default)
         {
-            return SendAsync<T>("GET", path, null);
+            return SendJsonAsync<T>("GET", path, null, cancellationToken);
         }
 
-        public Task<ApiResponse<T>> PostAsync<T>(string path, object body = null)
+        public Task<ApiResponse<T>> PostAsync<T>(string path, object body = null, CancellationToken cancellationToken = default)
         {
-            return SendAsync<T>("POST", path, body);
+            return SendJsonAsync<T>("POST", path, body, cancellationToken);
         }
 
-        public Task<ApiResponse<T>> PutAsync<T>(string path, object body = null)
+        public Task<ApiResponse<T>> PutAsync<T>(string path, object body = null, CancellationToken cancellationToken = default)
         {
-            return SendAsync<T>("PUT", path, body);
+            return SendJsonAsync<T>("PUT", path, body, cancellationToken);
         }
 
-        public Task<ApiResponse<T>> PatchAsync<T>(string path, object body = null)
+        public Task<ApiResponse<T>> PatchAsync<T>(string path, object body = null, CancellationToken cancellationToken = default)
         {
-            return SendAsync<T>("PATCH", path, body);
+            return SendJsonAsync<T>("PATCH", path, body, cancellationToken);
         }
 
-        public Task<ApiResponse<object>> DeleteAsync(string path)
+        public Task<ApiResponse<object>> DeleteAsync(string path, CancellationToken cancellationToken = default)
         {
-            return SendAsync<object>("DELETE", path, null);
+            return SendJsonAsync<object>("DELETE", path, null, cancellationToken);
         }
 
-        private async Task<ApiResponse<T>> SendAsync<T>(string method, string path, object body, bool isRetry = false)
+        public Task<ApiResponse<T>> PostMultipartAsync<T>(string path, MultipartFormBuilder form, CancellationToken cancellationToken = default)
         {
-            var url = _config.apiBaseUrl.TrimEnd('/') + "/" + path.TrimStart('/');
+            if (form == null)
+                throw new ArgumentNullException(nameof(form));
 
-            var request = new UnityWebRequest(url, method)
+            return SendAsync<T>("POST", path, form.Build(), form.ContentType, _config.uploadTimeoutSeconds, cancellationToken);
+        }
+
+        // onBody is called with each piece of a successful response while it downloads and must not throw.
+        public async Task<ApiResponse<object>> PostStreamAsync(
+            string path,
+            object body,
+            Action<byte[], int> onBody,
+            CancellationToken cancellationToken = default)
+        {
+            if (onBody == null)
+                throw new ArgumentNullException(nameof(onBody));
+
+            var bytes = Serialize(body);
+            var raw = await ExecuteAsync(
+                "POST", path, bytes, bytes != null ? JsonContentType : null, _config.streamTimeoutSeconds, cancellationToken, onBody);
+
+            return raw.Error != null
+                ? ApiResponse<object>.Fail(raw.Error, raw.StatusCode, raw.Body)
+                : ApiResponse<object>.Success(null, raw.StatusCode, raw.Body);
+        }
+
+        private Task<ApiResponse<T>> SendJsonAsync<T>(string method, string path, object body, CancellationToken cancellationToken)
+        {
+            var bytes = Serialize(body);
+            return SendAsync<T>(method, path, bytes, bytes != null ? JsonContentType : null, _config.requestTimeoutSeconds, cancellationToken);
+        }
+
+        private static byte[] Serialize(object body)
+        {
+            return body == null ? null : Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(body));
+        }
+
+        private async Task<ApiResponse<T>> SendAsync<T>(
+            string method,
+            string path,
+            byte[] body,
+            string contentType,
+            int timeoutSeconds,
+            CancellationToken cancellationToken)
+        {
+            var raw = await ExecuteAsync(method, path, body, contentType, timeoutSeconds, cancellationToken, null);
+
+            if (raw.Error != null)
+                return ApiResponse<T>.Fail(raw.Error, raw.StatusCode, raw.Body);
+
+            if (string.IsNullOrEmpty(raw.Body) || raw.StatusCode == 204)
+                return ApiResponse<T>.Success(default, raw.StatusCode, raw.Body);
+
+            try
             {
-                timeout = _config.requestTimeoutSeconds,
-                downloadHandler = new DownloadHandlerBuffer(),
-            };
-
-            if (body != null)
-            {
-                var json = JsonConvert.SerializeObject(body);
-                request.uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(json));
+                return ApiResponse<T>.Success(DeserializeData<T>(raw.Body), raw.StatusCode, raw.Body);
             }
-
-            request.SetRequestHeader("Accept", "application/json");
-            request.SetRequestHeader("Content-Type", "application/json");
-
-            var token = _tokenStorage.Load();
-            if (token != null)
-            {
-                request.SetRequestHeader("Authorization", "Bearer " + token.Token);
-            }
-
-            var operation = request.SendWebRequest();
-            var tcs = new TaskCompletionSource<bool>();
-            operation.completed += _ => tcs.TrySetResult(true);
-            await tcs.Task;
-
-            var statusCode = (int)request.responseCode;
-            var rawBody = request.downloadHandler?.text ?? "";
-            var transportFailed = request.result == UnityWebRequest.Result.ConnectionError
-                || request.result == UnityWebRequest.Result.DataProcessingError;
-            var transportMessage = request.error;
-
-            request.Dispose();
-
-            if (transportFailed)
+            catch (Exception e)
             {
                 return ApiResponse<T>.Fail(
-                    new ApiError { Code = "NETWORK_ERROR", Message = transportMessage },
-                    statusCode,
-                    rawBody);
+                    new ApiError { Code = ApiErrorCodes.ParseError, Message = e.Message },
+                    raw.StatusCode,
+                    raw.Body);
             }
-
-            if (statusCode == 401 && !isRetry && _onUnauthorized != null && ShouldRefreshOn401(path, token != null))
-            {
-                var refreshed = await _onUnauthorized();
-                if (refreshed)
-                    return await SendAsync<T>(method, path, body, isRetry: true);
-            }
-
-            if (statusCode >= 200 && statusCode < 300)
-            {
-                if (string.IsNullOrEmpty(rawBody) || statusCode == 204)
-                    return ApiResponse<T>.Success(default, statusCode, rawBody);
-
-                try
-                {
-                    return ApiResponse<T>.Success(DeserializeData<T>(rawBody), statusCode, rawBody);
-                }
-                catch (Exception e)
-                {
-                    return ApiResponse<T>.Fail(
-                        new ApiError { Code = "PARSE_ERROR", Message = e.Message },
-                        statusCode,
-                        rawBody);
-                }
-            }
-
-            var error = DeserializeError(rawBody);
-            return ApiResponse<T>.Fail(error, statusCode, rawBody);
         }
 
-        // A 401 from login or refresh is a credential failure, not an expired session.
+        private async Task<RawResponse> ExecuteAsync(
+            string method,
+            string path,
+            byte[] body,
+            string contentType,
+            int timeoutSeconds,
+            CancellationToken cancellationToken,
+            Action<byte[], int> onBody)
+        {
+            var url = _config.apiBaseUrl.TrimEnd('/') + "/" + path.TrimStart('/');
+            var isStream = onBody != null;
+            var retries = 0;
+            var refreshed = false;
+
+            while (true)
+            {
+                if (cancellationToken.IsCancellationRequested)
+                    return RawResponse.Cancelled();
+
+                var token = _tokenStorage.Load();
+                var spec = new HttpRequestSpec
+                {
+                    Method = method,
+                    Url = url,
+                    Body = body,
+                    ContentType = contentType,
+                    BearerToken = token?.Token,
+                    TimeoutSeconds = timeoutSeconds,
+                };
+
+                var result = await _transport.SendAsync(spec, cancellationToken, onBody);
+
+                if (result.Cancelled)
+                    return RawResponse.Cancelled();
+
+                if (result.TransportError != null)
+                {
+                    var transportDelay = RetryPolicy.NextDelay(method, retries, 0, true, null, isStream, _config);
+                    if (transportDelay != null)
+                    {
+                        if (!await WaitAsync(transportDelay.Value, cancellationToken))
+                            return RawResponse.Cancelled();
+
+                        retries++;
+                        continue;
+                    }
+
+                    return new RawResponse
+                    {
+                        StatusCode = result.StatusCode,
+                        Body = result.Body,
+                        Error = new ApiError { Code = ApiErrorCodes.NetworkError, Message = result.TransportError },
+                    };
+                }
+
+                if (result.StatusCode >= 200 && result.StatusCode < 300)
+                    return new RawResponse { StatusCode = result.StatusCode, Body = result.Body };
+
+                var error = ApiErrorParser.Parse(result.StatusCode, result.Body, result.GetHeader("Retry-After"));
+
+                if (result.StatusCode == 401 && !refreshed && _onUnauthorized != null && ShouldRefreshOn401(path, token != null))
+                {
+                    refreshed = true;
+                    if (await _onUnauthorized(token.Token))
+                        continue;
+                }
+
+                var delay = RetryPolicy.NextDelay(method, retries, result.StatusCode, false, error.RetryAfterSeconds, isStream, _config);
+                if (delay != null)
+                {
+                    if (!await WaitAsync(delay.Value, cancellationToken))
+                        return RawResponse.Cancelled();
+
+                    retries++;
+                    continue;
+                }
+
+                return new RawResponse { StatusCode = result.StatusCode, Body = result.Body, Error = error };
+            }
+        }
+
+        // Task.Delay needs threads, so the SDK does not support WebGL.
+        private static async Task<bool> WaitAsync(TimeSpan delay, CancellationToken cancellationToken)
+        {
+            var jittered = TimeSpan.FromSeconds(delay.TotalSeconds * (1 + 0.2 * Jitter.NextDouble()));
+            try
+            {
+                await Task.Delay(jittered, cancellationToken);
+                return true;
+            }
+            catch (OperationCanceledException)
+            {
+                return false;
+            }
+        }
+
+        // A 401 from login or refresh is a credential failure, not an expired session, and
+        // logging out with a dead token needs no new one.
         internal static bool ShouldRefreshOn401(string path, bool hasToken)
         {
             if (!hasToken)
@@ -135,38 +235,46 @@ namespace Technyx.Sdk.Http
 
             var normalized = path.TrimStart('/');
             return !normalized.StartsWith("auth/login", StringComparison.OrdinalIgnoreCase)
-                && !normalized.StartsWith("auth/refresh", StringComparison.OrdinalIgnoreCase);
+                && !normalized.StartsWith("auth/refresh", StringComparison.OrdinalIgnoreCase)
+                && !normalized.StartsWith("auth/logout", StringComparison.OrdinalIgnoreCase);
         }
 
+        // Resource collections of the Team module are returned without the {data: ...} envelope,
+        // so a root object that carries both a data array and meta is the paginated payload itself.
         internal static T DeserializeData<T>(string json)
         {
-            var obj = JObject.Parse(json);
-            var dataToken = obj["data"];
-            if (dataToken != null)
-                return dataToken.ToObject<T>();
+            var token = JsonParser.Parse(json);
 
-            return JsonConvert.DeserializeObject<T>(json);
+            if (token is JObject obj)
+            {
+                var data = obj["data"];
+
+                if (IsPaginated(typeof(T)) && data is JArray && obj["meta"] != null)
+                    return obj.ToObject<T>();
+
+                if (data != null)
+                    return data.ToObject<T>();
+            }
+
+            return token.ToObject<T>();
         }
 
-        private static ApiError DeserializeError(string json)
+        private static bool IsPaginated(Type type)
         {
-            try
-            {
-                var obj = JObject.Parse(json);
-                var errorToken = obj["error"];
-                if (errorToken != null)
-                    return errorToken.ToObject<ApiError>();
+            return type.IsGenericType && type.GetGenericTypeDefinition() == typeof(PaginatedResponse<>);
+        }
 
-                return new ApiError
-                {
-                    Code = "UNKNOWN",
-                    Message = obj["message"]?.ToString() ?? "Request failed.",
-                };
-            }
-            catch
+        private sealed class RawResponse
+        {
+            public int StatusCode;
+            public string Body;
+            public ApiError Error;
+
+            public static RawResponse Cancelled() => new RawResponse
             {
-                return new ApiError { Code = "PARSE_ERROR", Message = json };
-            }
+                Body = "",
+                Error = new ApiError { Code = ApiErrorCodes.Cancelled, Message = "The request was cancelled." },
+            };
         }
     }
 }

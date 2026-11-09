@@ -27,7 +27,7 @@ namespace Technyx.Sdk.Tests
                 requestTimeoutSeconds = 5,
             };
 
-            var tokenStorage = new TokenStorage(_config.encryptionSalt);
+            var tokenStorage = new TokenStorage(_config.encryptionSalt, "_tnxtest_devices");
             tokenStorage.Clear();
 
             _apiClient = new ApiClient(_config, tokenStorage);

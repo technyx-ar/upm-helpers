@@ -1,3 +1,4 @@
+using System;
 using Technyx.Sdk.Auth;
 using Technyx.Sdk.Config;
 using Technyx.Sdk.Devices;
@@ -23,25 +24,55 @@ namespace Technyx.Sdk
             if (Instance != null)
                 return;
 
+            var config = SdkConfigLoader.Load();
+
             var go = new GameObject("[Technyx.Sdk]");
             DontDestroyOnLoad(go);
             Instance = go.AddComponent<TechnyxSdk>();
 
-            Config = SdkConfigLoader.Load();
-            TokenStorage = new TokenStorage(Config.encryptionSalt);
-            Http = new ApiClient(Config, TokenStorage);
-            Auth = new AuthService(Http, TokenStorage, Config);
-            Devices = new DeviceService(Http);
-
+            Build(config);
             Auth.RestoreSession();
 
             Debug.Log($"[Technyx.Sdk] Initialized. API: {Config.apiBaseUrl}");
         }
 
+        // Replaces the configuration of the running SDK. The services are rebuilt, so references to
+        // TechnyxSdk.Auth, Devices and the other services taken earlier go stale and OnAuthStateChanged
+        // has to be subscribed again. A different encryptionSalt makes the stored session unreadable.
+        public static void Configure(SdkConfig config)
+        {
+            if (config == null)
+                throw new ArgumentNullException(nameof(config));
+
+            if (Instance == null)
+                throw new InvalidOperationException("The SDK is not initialized yet.");
+
+            config.Validate();
+
+            Auth?.Shutdown();
+            SdkConfigLoader.Replace(config);
+            Build(config);
+            Auth.RestoreSession();
+
+            Debug.Log($"[Technyx.Sdk] Reconfigured. API: {Config.apiBaseUrl}");
+        }
+
+        private static void Build(SdkConfig config)
+        {
+            Config = config;
+            TokenStorage = new TokenStorage(config.encryptionSalt);
+            Http = new ApiClient(config, TokenStorage);
+            Auth = new AuthService(Http, TokenStorage, config);
+            Devices = new DeviceService(Http);
+        }
+
         private void OnDestroy()
         {
-            if (Instance == this)
-                Instance = null;
+            if (Instance != this)
+                return;
+
+            Auth?.Shutdown();
+            Instance = null;
         }
     }
 }

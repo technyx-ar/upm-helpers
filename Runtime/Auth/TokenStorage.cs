@@ -1,102 +1,179 @@
 using System;
 using System.Globalization;
-using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using UnityEngine;
 
 namespace Technyx.Sdk.Auth
 {
+    // The key is derived from the device identifier and the configured salt, and both are readable on
+    // the device. The MAC detects a damaged or edited value; it does not protect the token from
+    // someone who controls the device or the app.
     public class TokenStorage
     {
-        private const string TokenKey = "_tnx_tk";
-        private const string ExpiryKey = "_tnx_te";
+        private const byte FormatVersion = 2;
+        private const int IvLength = 16;
+        private const int MacLength = 32;
+        private const string TokenPurpose = "token";
+        private const string ExpiryPurpose = "expiry";
 
+        private readonly string _tokenKey;
+        private readonly string _expiryKey;
         private readonly byte[] _encryptionKey;
+        private readonly byte[] _macKey;
 
-        public TokenStorage(string salt)
+        public TokenStorage(string salt, string keyPrefix = "_tnx")
         {
-            var source = SystemInfo.deviceUniqueIdentifier + salt;
-            using var sha = SHA256.Create();
-            _encryptionKey = sha.ComputeHash(Encoding.UTF8.GetBytes(source));
+            _tokenKey = keyPrefix + "_tk";
+            _expiryKey = keyPrefix + "_te";
+
+            byte[] master;
+            using (var sha = SHA256.Create())
+                master = sha.ComputeHash(Encoding.UTF8.GetBytes(SystemInfo.deviceUniqueIdentifier + salt));
+
+            _encryptionKey = Derive(master, "enc");
+            _macKey = Derive(master, "mac");
         }
 
         public void Save(string token, DateTime expiresAt)
         {
-            PlayerPrefs.SetString(TokenKey, Encrypt(token));
-            PlayerPrefs.SetString(ExpiryKey, Encrypt(expiresAt.ToString("O")));
+            PlayerPrefs.SetString(_tokenKey, Protect(TokenPurpose, token));
+            PlayerPrefs.SetString(_expiryKey, Protect(ExpiryPurpose, ToUtc(expiresAt).ToString("O", CultureInfo.InvariantCulture)));
             PlayerPrefs.Save();
         }
 
         public TokenData Load()
         {
-            var encryptedToken = PlayerPrefs.GetString(TokenKey, null);
-            var encryptedExpiry = PlayerPrefs.GetString(ExpiryKey, null);
+            var storedToken = PlayerPrefs.GetString(_tokenKey, null);
+            var storedExpiry = PlayerPrefs.GetString(_expiryKey, null);
 
-            if (string.IsNullOrEmpty(encryptedToken) || string.IsNullOrEmpty(encryptedExpiry))
+            if (string.IsNullOrEmpty(storedToken) || string.IsNullOrEmpty(storedExpiry))
                 return null;
 
+            string token;
+            DateTime expiry;
             try
             {
-                var token = Decrypt(encryptedToken);
-                var expiry = DateTime.Parse(Decrypt(encryptedExpiry), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
-
-                if (expiry <= DateTime.UtcNow)
-                {
-                    Clear();
-                    return null;
-                }
-
-                return new TokenData { Token = token, ExpiresAt = expiry };
+                token = Unprotect(TokenPurpose, storedToken);
+                expiry = DateTime.Parse(Unprotect(ExpiryPurpose, storedExpiry), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
             }
-            catch
+            catch (Exception e) when (e is CryptographicException || e is FormatException || e is ArgumentException)
+            {
+                Debug.LogWarning("[Technyx.Sdk] The stored session could not be verified and was discarded; a new login is required. " + e.Message);
+                Clear();
+                return null;
+            }
+
+            if (expiry <= DateTime.UtcNow)
             {
                 Clear();
                 return null;
             }
+
+            return new TokenData { Token = token, ExpiresAt = expiry };
         }
 
         public void Clear()
         {
-            PlayerPrefs.DeleteKey(TokenKey);
-            PlayerPrefs.DeleteKey(ExpiryKey);
+            PlayerPrefs.DeleteKey(_tokenKey);
+            PlayerPrefs.DeleteKey(_expiryKey);
             PlayerPrefs.Save();
         }
 
-        private string Encrypt(string plainText)
+        private static DateTime ToUtc(DateTime value)
         {
-            using var aes = Aes.Create();
-            aes.Key = _encryptionKey;
-            aes.GenerateIV();
-
-            using var encryptor = aes.CreateEncryptor();
-            var plainBytes = Encoding.UTF8.GetBytes(plainText);
-            var cipherBytes = encryptor.TransformFinalBlock(plainBytes, 0, plainBytes.Length);
-
-            var result = new byte[aes.IV.Length + cipherBytes.Length];
-            Buffer.BlockCopy(aes.IV, 0, result, 0, aes.IV.Length);
-            Buffer.BlockCopy(cipherBytes, 0, result, aes.IV.Length, cipherBytes.Length);
-
-            return Convert.ToBase64String(result);
+            switch (value.Kind)
+            {
+                case DateTimeKind.Utc: return value;
+                case DateTimeKind.Local: return value.ToUniversalTime();
+                default: return DateTime.SpecifyKind(value, DateTimeKind.Utc);
+            }
         }
 
-        private string Decrypt(string cipherText)
+        private static byte[] Derive(byte[] master, string label)
         {
-            var fullBytes = Convert.FromBase64String(cipherText);
+            using (var hmac = new HMACSHA256(master))
+                return hmac.ComputeHash(Encoding.UTF8.GetBytes(label));
+        }
 
-            using var aes = Aes.Create();
-            aes.Key = _encryptionKey;
+        private string Protect(string purpose, string plainText)
+        {
+            using (var aes = Aes.Create())
+            {
+                aes.Key = _encryptionKey;
+                aes.GenerateIV();
 
-            var iv = new byte[aes.BlockSize / 8];
-            var cipher = new byte[fullBytes.Length - iv.Length];
-            Buffer.BlockCopy(fullBytes, 0, iv, 0, iv.Length);
-            Buffer.BlockCopy(fullBytes, iv.Length, cipher, 0, cipher.Length);
+                var plainBytes = Encoding.UTF8.GetBytes(plainText);
+                byte[] cipher;
+                using (var encryptor = aes.CreateEncryptor())
+                    cipher = encryptor.TransformFinalBlock(plainBytes, 0, plainBytes.Length);
 
-            aes.IV = iv;
-            using var decryptor = aes.CreateDecryptor();
-            var plainBytes = decryptor.TransformFinalBlock(cipher, 0, cipher.Length);
+                var payload = new byte[1 + IvLength + cipher.Length + MacLength];
+                payload[0] = FormatVersion;
+                Buffer.BlockCopy(aes.IV, 0, payload, 1, IvLength);
+                Buffer.BlockCopy(cipher, 0, payload, 1 + IvLength, cipher.Length);
 
-            return Encoding.UTF8.GetString(plainBytes);
+                var mac = ComputeMac(purpose, payload, payload.Length - MacLength);
+                Buffer.BlockCopy(mac, 0, payload, payload.Length - MacLength, MacLength);
+
+                return Convert.ToBase64String(payload);
+            }
+        }
+
+        private string Unprotect(string purpose, string stored)
+        {
+            var payload = Convert.FromBase64String(stored);
+
+            if (payload.Length < 1 + IvLength + 16 + MacLength || payload[0] != FormatVersion)
+                throw new CryptographicException("Unknown stored session format.");
+
+            var macOffset = payload.Length - MacLength;
+            var expected = ComputeMac(purpose, payload, macOffset);
+            var actual = new byte[MacLength];
+            Buffer.BlockCopy(payload, macOffset, actual, 0, MacLength);
+
+            if (!FixedTimeEquals(expected, actual))
+                throw new CryptographicException("The stored session failed its integrity check.");
+
+            var iv = new byte[IvLength];
+            Buffer.BlockCopy(payload, 1, iv, 0, IvLength);
+
+            var cipherLength = macOffset - 1 - IvLength;
+            var cipher = new byte[cipherLength];
+            Buffer.BlockCopy(payload, 1 + IvLength, cipher, 0, cipherLength);
+
+            using (var aes = Aes.Create())
+            {
+                aes.Key = _encryptionKey;
+                aes.IV = iv;
+
+                using (var decryptor = aes.CreateDecryptor())
+                    return Encoding.UTF8.GetString(decryptor.TransformFinalBlock(cipher, 0, cipher.Length));
+            }
+        }
+
+        private byte[] ComputeMac(string purpose, byte[] data, int count)
+        {
+            var label = Encoding.UTF8.GetBytes(purpose + "\n");
+
+            using (var hmac = new HMACSHA256(_macKey))
+            {
+                hmac.TransformBlock(label, 0, label.Length, null, 0);
+                hmac.TransformFinalBlock(data, 0, count);
+                return hmac.Hash;
+            }
+        }
+
+        private static bool FixedTimeEquals(byte[] left, byte[] right)
+        {
+            if (left.Length != right.Length)
+                return false;
+
+            var difference = 0;
+            for (var i = 0; i < left.Length; i++)
+                difference |= left[i] ^ right[i];
+
+            return difference == 0;
         }
     }
 }

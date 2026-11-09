@@ -14,6 +14,7 @@ namespace Technyx.Sdk.Tests
         [TestCase("/auth/login")]
         [TestCase("auth/refresh")]
         [TestCase("Auth/Refresh")]
+        [TestCase("auth/logout")]
         public void ShouldRefreshOn401_AuthEndpoints_ReturnsFalse(string path)
         {
             Assert.IsFalse(ApiClient.ShouldRefreshOn401(path, hasToken: true));
@@ -50,6 +51,22 @@ namespace Technyx.Sdk.Tests
             var result = ApiClient.DeserializeData<RefreshResponse>("{\"token\":\"root\"}");
 
             Assert.AreEqual("root", result.Token);
+        }
+
+        [Test]
+        public void DeserializeData_KeepsIsoTimestampStringsVerbatim()
+        {
+            var result = ApiClient.DeserializeData<DeviceData>("{\"data\":{\"id\":\"01D\",\"created_at\":\"2026-12-01T10:30:00.000000Z\"}}");
+
+            Assert.AreEqual("2026-12-01T10:30:00.000000Z", result.CreatedAt);
+        }
+
+        [Test]
+        public void DeserializeData_NonPaginatedType_IgnoresMetaAtTheRoot()
+        {
+            var result = ApiClient.DeserializeData<RefreshResponse>("{\"data\":{\"token\":\"inner\"},\"meta\":{\"x\":1}}");
+
+            Assert.AreEqual("inner", result.Token);
         }
 
         [Test]
