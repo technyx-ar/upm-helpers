@@ -3,6 +3,7 @@ using Technyx.Sdk.Auth;
 using Technyx.Sdk.Config;
 using Technyx.Sdk.Devices;
 using Technyx.Sdk.Http;
+using Technyx.Sdk.Photos;
 using Technyx.Sdk.Teams;
 using UnityEngine;
 
@@ -15,6 +16,7 @@ namespace Technyx.Sdk
         public static DeviceService Devices { get; private set; }
         public static TeamService Teams { get; private set; }
         public static OrganizationService Organizations { get; private set; }
+        public static PhotoService Photos { get; private set; }
         public static ApiClient Http { get; private set; }
         public static SdkConfig Config { get; private set; }
         public static TokenStorage TokenStorage { get; private set; }
@@ -69,6 +71,7 @@ namespace Technyx.Sdk
             Devices = new DeviceService(Http);
             Teams = new TeamService(Http);
             Organizations = new OrganizationService(Http);
+            Photos = new PhotoService(Http);
         }
 
         private void OnDestroy()

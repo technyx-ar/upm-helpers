@@ -43,7 +43,12 @@ namespace Technyx.Sdk.Http
 
         internal QueryBuilder Add(string name, DateTimeOffset? value)
         {
-            return value == null ? this : Add(name, value.Value.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture));
+            return value == null ? this : Add(name, FormatInstant(value.Value));
+        }
+
+        internal static string FormatInstant(DateTimeOffset value)
+        {
+            return value.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
         }
 
         internal string AppendTo(string path) => path + _query;
