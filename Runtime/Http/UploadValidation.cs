@@ -4,7 +4,6 @@ namespace Technyx.Sdk.Http
 {
     internal static class UploadValidation
     {
-        // Rejects a file before any bytes are sent; returns null when the file is acceptable.
         internal static ApiResponse<T> CheckFile<T>(string field, byte[] data, string fileName, string contentType, long maxBytes)
         {
             if (data == null || data.Length == 0)

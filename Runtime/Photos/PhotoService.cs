@@ -18,7 +18,6 @@ namespace Technyx.Sdk.Photos
             _http = http;
         }
 
-        // The backend returns 30 photos per page, newest first.
         public Task<ApiResponse<PaginatedResponse<PhotoData>>> ListAsync(
             int page = 1,
             PhotoFilter filter = null,

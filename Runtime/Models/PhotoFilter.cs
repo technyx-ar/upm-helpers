@@ -6,10 +6,8 @@ namespace Technyx.Sdk.Models
 {
     public sealed class PhotoFilter
     {
-        // Substring of the file name.
         public string Name;
 
-        // Substring of the description.
         public string Description;
 
         public double? GpsLat;
@@ -19,7 +17,6 @@ namespace Technyx.Sdk.Models
         public DateTimeOffset? TimestampFrom;
         public DateTimeOffset? TimestampTo;
 
-        // Exact match on keys of the photo's meta.
         public Dictionary<string, string> Meta;
 
         internal QueryBuilder AppendTo(QueryBuilder query)

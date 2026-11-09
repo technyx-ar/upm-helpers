@@ -48,7 +48,6 @@ namespace Technyx.Sdk.Http
             return SendJsonAsync<T>("POST", path, body, cancellationToken);
         }
 
-        // For calls that wait on a model: uses streamTimeoutSeconds instead of requestTimeoutSeconds.
         public Task<ApiResponse<T>> PostLongRunningAsync<T>(string path, object body = null, CancellationToken cancellationToken = default)
         {
             return SendJsonAsync<T>("POST", path, body, cancellationToken, _config.streamTimeoutSeconds);

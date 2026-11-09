@@ -35,7 +35,6 @@ namespace Technyx.Sdk.Models
         [JsonProperty("timestamp")]
         public string Timestamp;
 
-        // The keys that were sent with the upload besides the named metadata fields.
         [JsonProperty("meta")]
         [JsonConverter(typeof(EmptyArrayAsObjectConverter))]
         public Dictionary<string, JToken> Meta;

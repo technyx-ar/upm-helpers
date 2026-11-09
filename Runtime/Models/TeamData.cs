@@ -16,7 +16,6 @@ namespace Technyx.Sdk.Models
         [JsonProperty("description")]
         public string Description;
 
-        // Null when the team has no manager.
         [JsonProperty("manager")]
         public TeamManagerData Manager;
 

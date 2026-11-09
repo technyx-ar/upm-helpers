@@ -15,7 +15,6 @@ namespace Technyx.Sdk.Models
         [JsonProperty("slug")]
         public string Slug;
 
-        // One of OrganizationStatus.
         [JsonProperty("status")]
         public string Status;
 
@@ -23,7 +22,6 @@ namespace Technyx.Sdk.Models
         [JsonConverter(typeof(EmptyArrayAsObjectConverter))]
         public OrganizationSettings Settings;
 
-        // Public URL of the logo, null when none was uploaded.
         [JsonProperty("logo")]
         public string Logo;
 

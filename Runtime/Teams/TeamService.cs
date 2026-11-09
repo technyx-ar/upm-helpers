@@ -6,7 +6,6 @@ using Technyx.Sdk.Models;
 
 namespace Technyx.Sdk.Teams
 {
-    // The backend limits team access by policy, so a signed-in user without the right gets 403.
     public class TeamService
     {
         private readonly ApiClient _http;

@@ -17,7 +17,6 @@ namespace Technyx.Sdk.Teams
             _http = http;
         }
 
-        // status is one of OrganizationStatus.
         public Task<ApiResponse<PaginatedResponse<OrganizationData>>> ListAsync(
             string status = null,
             int page = 1,
