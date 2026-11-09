@@ -59,13 +59,22 @@ else
 | `Code` | string | Error code, e.g. `INVALID_CREDENTIALS` |
 | `Message` | string | Human-readable error message |
 
+Codes produced by the client itself (not by the backend):
+
+| Code | Meaning |
+|------|---------|
+| `NETWORK_ERROR` | The request never reached the server or no response arrived (DNS, TLS, timeout, connection reset). `StatusCode` is `0`. |
+| `PARSE_ERROR` | The server answered, but the body could not be read (for example an HTML error page from a proxy, or a login response without a valid token or expiry). |
+
 ## Automatic 401 Retry
 
-If a request receives a `401 Unauthorized`:
+If a request that carried a Bearer token receives a `401 Unauthorized`:
 
 1. The client automatically attempts a token refresh
 2. If refresh succeeds, the original request is retried with the new token
 3. If refresh fails, the response is returned as-is and auth state changes to `Error`
+
+`auth/login` and `auth/refresh` never trigger this retry: a 401 from either one is a credential failure and is returned as-is. Requests sent without a stored token are not retried either.
 
 This happens transparently – no extra code needed.
 

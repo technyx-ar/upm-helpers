@@ -5,7 +5,6 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Technyx.Sdk.Auth;
 using Technyx.Sdk.Config;
-using UnityEngine;
 using UnityEngine.Networking;
 
 namespace Technyx.Sdk.Http
@@ -85,10 +84,21 @@ namespace Technyx.Sdk.Http
 
             var statusCode = (int)request.responseCode;
             var rawBody = request.downloadHandler?.text ?? "";
+            var transportFailed = request.result == UnityWebRequest.Result.ConnectionError
+                || request.result == UnityWebRequest.Result.DataProcessingError;
+            var transportMessage = request.error;
 
             request.Dispose();
 
-            if (statusCode == 401 && !isRetry && _onUnauthorized != null)
+            if (transportFailed)
+            {
+                return ApiResponse<T>.Fail(
+                    new ApiError { Code = "NETWORK_ERROR", Message = transportMessage },
+                    statusCode,
+                    rawBody);
+            }
+
+            if (statusCode == 401 && !isRetry && _onUnauthorized != null && ShouldRefreshOn401(path, token != null))
             {
                 var refreshed = await _onUnauthorized();
                 if (refreshed)
@@ -100,30 +110,42 @@ namespace Technyx.Sdk.Http
                 if (string.IsNullOrEmpty(rawBody) || statusCode == 204)
                     return ApiResponse<T>.Success(default, statusCode, rawBody);
 
-                var data = DeserializeData<T>(rawBody);
-                return ApiResponse<T>.Success(data, statusCode, rawBody);
+                try
+                {
+                    return ApiResponse<T>.Success(DeserializeData<T>(rawBody), statusCode, rawBody);
+                }
+                catch (Exception e)
+                {
+                    return ApiResponse<T>.Fail(
+                        new ApiError { Code = "PARSE_ERROR", Message = e.Message },
+                        statusCode,
+                        rawBody);
+                }
             }
 
             var error = DeserializeError(rawBody);
             return ApiResponse<T>.Fail(error, statusCode, rawBody);
         }
 
-        private static T DeserializeData<T>(string json)
+        // A 401 from login or refresh is a credential failure, not an expired session.
+        internal static bool ShouldRefreshOn401(string path, bool hasToken)
         {
-            try
-            {
-                var obj = JObject.Parse(json);
-                var dataToken = obj["data"];
-                if (dataToken != null)
-                    return dataToken.ToObject<T>();
+            if (!hasToken)
+                return false;
 
-                return JsonConvert.DeserializeObject<T>(json);
-            }
-            catch (Exception e)
-            {
-                Debug.LogWarning($"[Technyx.Sdk] Failed to deserialize response: {e.Message}");
-                return default;
-            }
+            var normalized = path.TrimStart('/');
+            return !normalized.StartsWith("auth/login", StringComparison.OrdinalIgnoreCase)
+                && !normalized.StartsWith("auth/refresh", StringComparison.OrdinalIgnoreCase);
+        }
+
+        internal static T DeserializeData<T>(string json)
+        {
+            var obj = JObject.Parse(json);
+            var dataToken = obj["data"];
+            if (dataToken != null)
+                return dataToken.ToObject<T>();
+
+            return JsonConvert.DeserializeObject<T>(json);
         }
 
         private static ApiError DeserializeError(string json)

@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Technyx.Sdk.Config;
@@ -54,9 +55,11 @@ namespace Technyx.Sdk.Auth
 
             var response = await _http.PostAsync<LoginResponse>("auth/login", body);
 
-            if (response.IsSuccess && response.Data != null)
+            if (response.IsSuccess)
             {
-                var expiresAt = DateTime.Parse(response.Data.ExpiresAt).ToUniversalTime();
+                if (response.Data == null || !TryParseExpiry(response.Data.ExpiresAt, out var expiresAt))
+                    return ApiResponse<LoginResponse>.Fail(InvalidSessionPayload(), response.StatusCode, response.RawBody);
+
                 _tokenStorage.Save(response.Data.Token, expiresAt);
                 CurrentUser = response.Data.User;
                 SetState(AuthState.Authenticated);
@@ -65,6 +68,24 @@ namespace Technyx.Sdk.Auth
 
             return response;
         }
+
+        internal static bool TryParseExpiry(string value, out DateTime expiresAtUtc)
+        {
+            if (DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var parsed))
+            {
+                expiresAtUtc = parsed.UtcDateTime;
+                return true;
+            }
+
+            expiresAtUtc = default;
+            return false;
+        }
+
+        private static ApiError InvalidSessionPayload() => new()
+        {
+            Code = "PARSE_ERROR",
+            Message = "The server response did not contain a valid token and expiry.",
+        };
 
         public async Task<bool> LogoutAsync()
         {
@@ -88,21 +109,21 @@ namespace Technyx.Sdk.Auth
 
                 var response = await _http.PostAsync<RefreshResponse>("auth/refresh");
 
-                if (response.IsSuccess && response.Data != null)
+                if (response.IsSuccess && response.Data != null && TryParseExpiry(response.Data.ExpiresAt, out var expiresAt))
                 {
-                    var expiresAt = DateTime.Parse(response.Data.ExpiresAt).ToUniversalTime();
                     _tokenStorage.Save(response.Data.Token, expiresAt);
                     SetState(AuthState.Authenticated);
                     ScheduleRefresh(expiresAt);
-                }
-                else
-                {
-                    _tokenStorage.Clear();
-                    CurrentUser = null;
-                    SetState(AuthState.Error);
+                    return response;
                 }
 
-                return response;
+                _tokenStorage.Clear();
+                CurrentUser = null;
+                SetState(AuthState.Error);
+
+                return response.IsSuccess
+                    ? ApiResponse<RefreshResponse>.Fail(InvalidSessionPayload(), response.StatusCode, response.RawBody)
+                    : response;
             }
             finally
             {
