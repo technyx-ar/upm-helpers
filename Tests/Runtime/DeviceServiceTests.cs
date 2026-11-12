@@ -27,7 +27,7 @@ namespace Technyx.Sdk.Tests
                 requestTimeoutSeconds = 5,
             };
 
-            var tokenStorage = new TokenStorage(_config.encryptionSalt);
+            var tokenStorage = new TokenStorage(_config.encryptionSalt, "_tnxtest_devices");
             tokenStorage.Clear();
 
             _apiClient = new ApiClient(_config, tokenStorage);
@@ -100,15 +100,21 @@ namespace Technyx.Sdk.Tests
         }
 
         [Test]
-        public void UpdateDeviceRequest_NullFieldsAreSerializedAsNull()
+        public void UpdateDeviceRequest_OmitsUnsetFields()
         {
-            var request = new UpdateDeviceRequest
-            {
-                Name = "Only Name",
-            };
+            var json = JsonConvert.SerializeObject(new UpdateDeviceRequest { Name = "Only Name" });
 
-            Assert.IsNull(request.Status);
-            Assert.IsNull(request.UserId);
+            Assert.That(json, Does.Contain("\"name\":\"Only Name\""));
+            Assert.That(json, Does.Not.Contain("status"));
+            Assert.That(json, Does.Not.Contain("user_id"));
+        }
+
+        [Test]
+        public void UpdateDeviceRequest_ReassignOnly_SendsOnlyUserId()
+        {
+            var json = JsonConvert.SerializeObject(new UpdateDeviceRequest { UserId = "01JQUSER000000000000000" });
+
+            Assert.AreEqual("{\"user_id\":\"01JQUSER000000000000000\"}", json);
         }
 
         // --- HeartbeatRequest ---
@@ -473,17 +479,24 @@ namespace Technyx.Sdk.Tests
                     { ""id"": ""01JQDEVICE00000000000001"", ""name"": ""Device A"", ""type"": ""quest_3"", ""serial_number"": ""SN-1"", ""status"": ""active"" },
                     { ""id"": ""01JQDEVICE00000000000002"", ""name"": ""Device B"", ""type"": ""vision_pro"", ""serial_number"": ""SN-2"", ""status"": ""registered"" }
                 ],
-                ""current_page"": 1,
-                ""last_page"": 3,
-                ""per_page"": 20,
-                ""total"": 42,
-                ""from"": 1,
-                ""to"": 20
+                ""links"": { ""first"": ""https://api.prod.technyx.ar/api/v1/devices?page=1"", ""last"": ""https://api.prod.technyx.ar/api/v1/devices?page=3"", ""prev"": null, ""next"": ""https://api.prod.technyx.ar/api/v1/devices?page=2"" },
+                ""meta"": {
+                    ""current_page"": 1,
+                    ""from"": 1,
+                    ""last_page"": 3,
+                    ""links"": [ { ""url"": null, ""label"": ""&laquo; Previous"", ""active"": false } ],
+                    ""path"": ""https://api.prod.technyx.ar/api/v1/devices"",
+                    ""per_page"": 20,
+                    ""to"": 20,
+                    ""total"": 42
+                }
             }";
 
             var page = JsonConvert.DeserializeObject<PaginatedResponse<DeviceData>>(json);
 
             Assert.IsNotNull(page);
+            Assert.IsNull(page.Links.Prev);
+            Assert.AreEqual("https://api.prod.technyx.ar/api/v1/devices?page=2", page.Links.Next);
             Assert.AreEqual(2, page.Data.Count);
             Assert.AreEqual(1, page.CurrentPage);
             Assert.AreEqual(3, page.LastPage);
@@ -504,12 +517,7 @@ namespace Technyx.Sdk.Tests
                 ""data"": [
                     { ""id"": ""01JQDEVICE00000000000001"", ""name"": ""Device A"", ""type"": ""quest_3"", ""serial_number"": ""SN-1"", ""status"": ""active"" }
                 ],
-                ""current_page"": 3,
-                ""last_page"": 3,
-                ""per_page"": 20,
-                ""total"": 42,
-                ""from"": 41,
-                ""to"": 42
+                ""meta"": { ""current_page"": 3, ""last_page"": 3, ""per_page"": 20, ""total"": 42, ""from"": 41, ""to"": 42 }
             }";
 
             var page = JsonConvert.DeserializeObject<PaginatedResponse<DeviceData>>(json);
@@ -524,12 +532,7 @@ namespace Technyx.Sdk.Tests
         {
             var json = @"{
                 ""data"": [],
-                ""current_page"": 1,
-                ""last_page"": 1,
-                ""per_page"": 20,
-                ""total"": 0,
-                ""from"": null,
-                ""to"": null
+                ""meta"": { ""current_page"": 1, ""last_page"": 1, ""per_page"": 20, ""total"": 0, ""from"": null, ""to"": null }
             }";
 
             var page = JsonConvert.DeserializeObject<PaginatedResponse<DeviceData>>(json);
@@ -540,6 +543,24 @@ namespace Technyx.Sdk.Tests
             Assert.IsNull(page.From);
             Assert.IsNull(page.To);
             Assert.IsFalse(page.HasMorePages);
+        }
+
+        [Test]
+        public void PaginatedResponse_WithoutMeta_Throws()
+        {
+            Assert.Throws<JsonSerializationException>(() =>
+                JsonConvert.DeserializeObject<PaginatedResponse<DeviceData>>("{\"data\":[],\"current_page\":1,\"last_page\":2}"));
+        }
+
+        [Test]
+        public void PaginatedResponse_ThroughEnvelope_ReadsMeta()
+        {
+            var json = "{\"success\":true,\"data\":{\"data\":[],\"links\":{},\"meta\":{\"current_page\":1,\"last_page\":2,\"per_page\":20,\"total\":25}}}";
+
+            var page = ApiClient.DeserializeData<PaginatedResponse<DeviceData>>(json);
+
+            Assert.AreEqual(2, page.LastPage);
+            Assert.IsTrue(page.HasMorePages);
         }
     }
 }

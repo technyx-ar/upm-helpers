@@ -1,8 +1,7 @@
-using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Technyx.Sdk.Http;
 using Technyx.Sdk.Models;
-using UnityEngine.Networking;
 
 namespace Technyx.Sdk.Devices
 {
@@ -19,56 +18,60 @@ namespace Technyx.Sdk.Devices
             string type = null,
             string status = null,
             string search = null,
-            int page = 1)
+            int page = 1,
+            CancellationToken cancellationToken = default)
         {
-            var query = new StringBuilder("devices?page=");
-            query.Append(page);
+            var path = new QueryBuilder()
+                .Add("page", page)
+                .Add("type", type)
+                .Add("status", status)
+                .Add("search", search)
+                .AppendTo("devices");
 
-            if (!string.IsNullOrEmpty(type))
-                query.Append("&type=").Append(UnityWebRequest.EscapeURL(type));
-
-            if (!string.IsNullOrEmpty(status))
-                query.Append("&status=").Append(UnityWebRequest.EscapeURL(status));
-
-            if (!string.IsNullOrEmpty(search))
-                query.Append("&search=").Append(UnityWebRequest.EscapeURL(search));
-
-            return _http.GetAsync<PaginatedResponse<DeviceData>>(query.ToString());
+            return _http.GetAsync<PaginatedResponse<DeviceData>>(path, cancellationToken);
         }
 
-        public Task<ApiResponse<DeviceData>> GetAsync(string deviceId)
+        public Task<ApiResponse<DeviceData>> GetAsync(string deviceId, CancellationToken cancellationToken = default)
         {
-            return _http.GetAsync<DeviceData>($"devices/{deviceId}");
+            return _http.GetAsync<DeviceData>($"devices/{Guard.Segment(deviceId, nameof(deviceId))}", cancellationToken);
         }
 
-        public Task<ApiResponse<DeviceData>> RegisterAsync(RegisterDeviceRequest request)
+        public Task<ApiResponse<DeviceData>> RegisterAsync(RegisterDeviceRequest request, CancellationToken cancellationToken = default)
         {
-            return _http.PostAsync<DeviceData>("devices", request);
+            return _http.PostAsync<DeviceData>("devices", request, cancellationToken);
         }
 
-        public Task<ApiResponse<DeviceData>> UpdateAsync(string deviceId, UpdateDeviceRequest request)
+        public Task<ApiResponse<DeviceData>> UpdateAsync(string deviceId, UpdateDeviceRequest request, CancellationToken cancellationToken = default)
         {
-            return _http.PatchAsync<DeviceData>($"devices/{deviceId}", request);
+            return _http.PatchAsync<DeviceData>($"devices/{Guard.Segment(deviceId, nameof(deviceId))}", request, cancellationToken);
         }
 
-        public Task<ApiResponse<object>> DeleteAsync(string deviceId)
+        public Task<ApiResponse<object>> DeleteAsync(string deviceId, CancellationToken cancellationToken = default)
         {
-            return _http.DeleteAsync($"devices/{deviceId}");
+            return _http.DeleteAsync($"devices/{Guard.Segment(deviceId, nameof(deviceId))}", cancellationToken);
         }
 
-        public Task<ApiResponse<DeviceHeartbeatData>> SendHeartbeatAsync(string deviceId, HeartbeatRequest request)
+        public Task<ApiResponse<DeviceHeartbeatData>> SendHeartbeatAsync(
+            string deviceId,
+            HeartbeatRequest request,
+            CancellationToken cancellationToken = default)
         {
-            return _http.PostAsync<DeviceHeartbeatData>($"devices/{deviceId}/heartbeat", request);
+            return _http.PostAsync<DeviceHeartbeatData>(
+                $"devices/{Guard.Segment(deviceId, nameof(deviceId))}/heartbeat", request, cancellationToken);
         }
 
-        public Task<ApiResponse<DeviceConfig>> GetConfigAsync(string deviceId)
+        public Task<ApiResponse<DeviceConfig>> GetConfigAsync(string deviceId, CancellationToken cancellationToken = default)
         {
-            return _http.GetAsync<DeviceConfig>($"devices/{deviceId}/config");
+            return _http.GetAsync<DeviceConfig>($"devices/{Guard.Segment(deviceId, nameof(deviceId))}/config", cancellationToken);
         }
 
-        public Task<ApiResponse<DeviceData>> UpdateConfigAsync(string deviceId, UpdateDeviceConfigRequest config)
+        public Task<ApiResponse<DeviceData>> UpdateConfigAsync(
+            string deviceId,
+            UpdateDeviceConfigRequest config,
+            CancellationToken cancellationToken = default)
         {
-            return _http.PatchAsync<DeviceData>($"devices/{deviceId}/config", config);
+            return _http.PatchAsync<DeviceData>(
+                $"devices/{Guard.Segment(deviceId, nameof(deviceId))}/config", config, cancellationToken);
         }
     }
 }
