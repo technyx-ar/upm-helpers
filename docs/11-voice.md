@@ -61,6 +61,25 @@ var answer = await TechnyxSdk.Voice.SendOfferAsync(new VoiceSdpOfferRequest
 
 Calling `SendOfferAsync` with the token of a LiveKit session fails with `422`.
 
+### Tools
+
+The session offers two functions to the model: `search_manuals` (equipment manuals in the knowledge base) and `web_search`. When the model emits a `function_call` on the data channel, run it through the backend and send the result back as a `function_call_output`:
+
+```csharp
+var result = await TechnyxSdk.Voice.ExecuteToolAsync(new VoiceToolCallRequest
+{
+    SessionToken = session.SessionToken,
+    Name = call.Name,             // from the function_call
+    Arguments = call.Arguments,   // JSON string, passed through unchanged
+    CallId = call.CallId,
+});
+
+// send result.Data.Output to OpenAI as function_call_output for result.Data.CallId, then request a response
+// result.Data.Sources lists manual files and pages or web URLs
+```
+
+A failed search returns an error response (`502`), unknown tools and bad arguments `422`, someone else's session `403`. Do not send an empty output in those cases. The SDK does not run the data channel itself.
+
 ## LiveKit (`webrtc`)
 
 Connect your LiveKit client to `session.LiveKitUrl` with `session.Token`. The room allows two participants and closes five minutes after it empties.
@@ -79,6 +98,8 @@ var result = await TechnyxSdk.Voice.SendCommandAsync(new VoiceCommandRequest
 
 Debug.Log(result.Data.Text);   // answer; AudioUrl is set when speech was generated
 ```
+
+The backend answers from the manuals (`search_manuals`) and the web (`web_search`) when the question needs it. `result.Data.Sources` lists what was used: `{type:"manual", source_file, pages, ...}` or `{type:"web", url, title}`. A failing search fails the whole command with `502`.
 
 Audio (mp3, wav, ogg or webm, at most 25 MB; checked before the request):
 

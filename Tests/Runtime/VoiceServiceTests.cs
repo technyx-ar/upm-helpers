@@ -297,6 +297,52 @@ namespace Technyx.Sdk.Tests
         }
 
         [Test]
+        public async Task ExecuteTool_SendsTheCallAndReadsTheOutputAndSources()
+        {
+            _api.Transport.Enqueue(200, "{\"success\":true,\"data\":{\"call_id\":\"call_9\",\"output\":\"{\\\"results\\\":[]}\",\"sources\":[{\"type\":\"manual\",\"source_file\":\"a.pdf\",\"pages\":[6]}]}}");
+
+            var response = await _service.ExecuteToolAsync(new VoiceToolCallRequest
+            {
+                SessionToken = "tok123",
+                Name = "search_manuals",
+                Arguments = "{\"query\":\"torque\"}",
+                CallId = "call_9",
+            });
+
+            Assert.IsTrue(response.IsSuccess);
+            Assert.AreEqual("voice/realtime/tools/execute", _api.Url(0));
+            Assert.AreEqual("call_9", response.Data.CallId);
+            Assert.AreEqual("{\"results\":[]}", response.Data.Output);
+            Assert.AreEqual("a.pdf", (string)response.Data.Sources[0]["source_file"]);
+
+            var body = JObject.Parse(_api.Body(0));
+            Assert.AreEqual("tok123", (string)body["session_token"]);
+            Assert.AreEqual("search_manuals", (string)body["name"]);
+            Assert.AreEqual("{\"query\":\"torque\"}", (string)body["arguments"]);
+        }
+
+        [Test]
+        public async Task ExecuteTool_OmitsUnsetFields_AndExposesAFailedTool()
+        {
+            _api.Transport.Enqueue(502, "{\"success\":false,\"message\":\"The voice service failed to process the request.\"}");
+
+            var response = await _service.ExecuteToolAsync(new VoiceToolCallRequest { SessionToken = "t", Name = "web_search" });
+
+            Assert.IsFalse(response.IsSuccess);
+            Assert.AreEqual(502, response.StatusCode);
+
+            var body = JObject.Parse(_api.Body(0));
+            Assert.IsNull(body["arguments"]);
+            Assert.IsNull(body["call_id"]);
+        }
+
+        [Test]
+        public void ExecuteTool_NullRequest_Throws()
+        {
+            Assert.Throws<ArgumentNullException>(() => _service.ExecuteToolAsync(null));
+        }
+
+        [Test]
         public async Task SendIceCandidate_OmitsUnsetFields()
         {
             _api.Transport.Enqueue(200, "{\"success\":true,\"data\":null}");

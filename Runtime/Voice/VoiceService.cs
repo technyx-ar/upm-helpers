@@ -108,6 +108,17 @@ namespace Technyx.Sdk.Voice
             return _http.PostLongRunningAsync<VoiceSdpAnswer>("voice/realtime/webrtc/offer", request, cancellationToken);
         }
 
+        // Runs a function call of an oai_rt session (search_manuals, web_search); a failed search is an error response, never an empty result.
+        public Task<ApiResponse<VoiceToolResult>> ExecuteToolAsync(
+            VoiceToolCallRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            if (request == null)
+                throw new ArgumentNullException(nameof(request));
+
+            return _http.PostLongRunningAsync<VoiceToolResult>("voice/realtime/tools/execute", request, cancellationToken);
+        }
+
         public Task<ApiResponse<object>> SendIceCandidateAsync(
             VoiceIceCandidateRequest request,
             CancellationToken cancellationToken = default)
