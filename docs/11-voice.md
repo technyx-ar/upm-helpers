@@ -1,0 +1,99 @@
+# Voice
+
+`TechnyxSdk.Voice` (`VoiceService`): voice sessions, spoken or typed commands and the conversation history. Every call returns `ApiResponse<T>` (see [HTTP Client](05-http-client.md)) and takes an optional `CancellationToken`.
+
+The SDK is the REST client only. It does not capture microphone audio, does not create a WebRTC peer connection and does not play audio; the app brings its own WebRTC or LiveKit client and uses the values returned here.
+
+> **Availability:** the voice module is deployed on `api.prod.technyx.ar` with the OpenAI key configured, and the `oai_rt` session creation was verified against OpenAI from the production backend. The SDK was only tested against scripted responses, never against the live endpoint or with a real headset.
+
+## Transports
+
+| Constant | Value | How the audio flows |
+|----------|-------|---------------------|
+| `VoiceTransports.OpenAiRealtime` | `oai_rt` | The app negotiates WebRTC with OpenAI (`gpt-realtime`). |
+| `VoiceTransports.LiveKit` | `webrtc` | The app joins a LiveKit room with the participant token. |
+| `VoiceTransports.WebSocket` | `ws` | Accepted by the backend, no connection data is returned. |
+
+Languages: `sk`, `en`, `cs` (`LanguageCodes`).
+
+## Create and end a session
+
+```csharp
+var created = await TechnyxSdk.Voice.CreateSessionAsync(new CreateVoiceSessionRequest
+{
+    Language = LanguageCodes.Slovak,
+    Transport = VoiceTransports.OpenAiRealtime,
+});
+
+if (!created.IsSuccess)
+    return; // created.Error.Message, created.StatusCode (502 when OpenAI or LiveKit fails, 503 when it is not configured)
+
+var session = created.Data;
+```
+
+`EphemeralKey` and `SessionToken` (`oai_rt`), or `RoomName`, `Token` and `LiveKitUrl` (`webrtc`), are returned only by this call. `GetSessionAsync(id)` returns the session without them. The session token is valid for 30 minutes.
+
+```csharp
+await TechnyxSdk.Voice.EndSessionAsync(session.Id);   // also closes the LiveKit room
+```
+
+## OpenAI Realtime (`oai_rt`)
+
+Two ways to connect, both with the data from `CreateSessionAsync`:
+
+1. **Through the backend.** Create the WebRTC offer in your client, send it and apply the returned answer:
+
+```csharp
+var answer = await TechnyxSdk.Voice.SendOfferAsync(new VoiceSdpOfferRequest
+{
+    SessionToken = session.SessionToken,
+    Sdp = offerSdp,
+});
+
+// answer.Data.Sdp is the remote description, answer.Data.Type is "answer"
+```
+
+   The backend creates a fresh ephemeral key for every offer, so the offer does not depend on the key returned at session creation.
+
+2. **Directly to OpenAI.** Post the offer as `application/sdp` to `https://api.openai.com/v1/realtime/calls` with `Authorization: Bearer <EphemeralKey>`. The key is short-lived; the SDK does not do this call.
+
+`SendIceCandidateAsync` validates the session token and returns success. OpenAI handles ICE itself, so the candidate is not forwarded anywhere.
+
+Calling `SendOfferAsync` with the token of a LiveKit session fails with `422`.
+
+## LiveKit (`webrtc`)
+
+Connect your LiveKit client to `session.LiveKitUrl` with `session.Token`. The room allows two participants and closes five minutes after it empties.
+
+## Commands
+
+Text:
+
+```csharp
+var result = await TechnyxSdk.Voice.SendCommandAsync(new VoiceCommandRequest
+{
+    Text = "Show my open tasks",                         // required, at most 2000 characters
+    Language = LanguageCodes.English,                    // required
+    Context = new AiChatContext { TaskId = taskUlid, Location = "Hangar 2" },   // optional
+});
+
+Debug.Log(result.Data.Text);   // answer; AudioUrl is set when speech was generated
+```
+
+Audio (mp3, wav, ogg or webm, at most 25 MB; checked before the request):
+
+```csharp
+var result = await TechnyxSdk.Voice.SendAudioAsync(bytes, "command.wav", "audio/wav", LanguageCodes.Slovak);
+```
+
+The recording is transcribed first. When it holds no recognizable speech the call succeeds with an empty `Text` and `ConversationId`. The backend allows 30 text and 12 audio commands per minute (`429`, handled by the retry policy).
+
+## History
+
+```csharp
+var page = await TechnyxSdk.Voice.ListHistoryAsync(page: 1, sessionId: session.Id, perPage: 20);   // perPage 1 to 50
+foreach (var item in page.Data.Data)
+    Debug.Log($"{item.Role}: {item.Content}");
+```
+
+Without `sessionId` the history of the signed-in user is returned, newest first.

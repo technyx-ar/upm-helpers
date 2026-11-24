@@ -112,6 +112,7 @@ TechnyxSdk (singleton, auto-init)
 ├── Organizations – OrganizationService (CRUD, settings, logo)
 ├── Photos       – PhotoService (upload, list, update, delete)
 ├── Ai           – AiService (chat, SSE stream, conversations)
+├── Voice        – VoiceService (realtime sessions, text and audio commands, history, WebRTC signaling)
 ├── Http         – ApiClient (typed async requests, Bearer token, 401 retry, retries, uploads, streams)
 ├── Config       – SdkConfig + SdkConfigLoader (code defaults, optional JSON from Resources)
 └── TokenStorage – encrypted and authenticated PlayerPrefs
@@ -131,6 +132,7 @@ Detailed docs in the [`docs/`](docs/) folder:
 8. [Teams & Organizations](docs/08-teams.md)
 9. [Photos](docs/09-photos.md)
 10. [AI Chat](docs/10-ai.md)
+11. [Voice](docs/11-voice.md)
 
 ## API Endpoints
 
