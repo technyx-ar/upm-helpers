@@ -8,6 +8,9 @@ namespace Technyx.Sdk.Http
         public ApiError Error { get; set; }
         public string RawBody { get; set; }
 
+        public bool IsCancelled => !IsSuccess && Error?.Code == ApiErrorCodes.Cancelled;
+        public bool IsNetworkError => !IsSuccess && Error?.Code == ApiErrorCodes.NetworkError;
+
         public static ApiResponse<T> Success(T data, int statusCode, string rawBody) => new()
         {
             IsSuccess = true,
@@ -20,7 +23,7 @@ namespace Technyx.Sdk.Http
         {
             IsSuccess = false,
             StatusCode = statusCode,
-            Error = error ?? new ApiError { Code = "UNKNOWN", Message = "An unknown error occurred." },
+            Error = error ?? new ApiError { Code = ApiErrorCodes.Unknown, Message = "An unknown error occurred." },
             RawBody = rawBody,
         };
     }

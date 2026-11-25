@@ -7,7 +7,7 @@
 | `Anonymous` | No token stored. User must log in. |
 | `Authenticated` | Valid token in storage. API calls are authorized. |
 | `Refreshing` | Token refresh is in progress. |
-| `Error` | Token refresh failed. User must re-authenticate. |
+| `Error` | The server rejected the token (or the stored session is gone). User must re-authenticate. |
 
 ## State Change Event
 
@@ -42,7 +42,7 @@ private void HandleAuthStateChanged(AuthState oldState, AuthState newState)
             break;
 
         case AuthState.Error:
-            // Token expired / refresh failed, prompt re-login
+            // The server rejected the session, prompt re-login
             ShowLoginScreen();
             break;
 
@@ -61,8 +61,13 @@ private void HandleAuthStateChanged(AuthState oldState, AuthState newState)
 **Auto-refresh (background):**
 `Authenticated` -> `Refreshing` -> `Authenticated`
 
-**Refresh failure (token expired on server):**
-`Authenticated` -> `Refreshing` -> `Error`
+**Refresh rejected (the server answered 401):**
+`Authenticated` -> `Refreshing` -> `Error`. The stored session is cleared.
+
+**Refresh failed for another reason (no network, server error, timeout):**
+`Authenticated` -> `Refreshing` -> `Authenticated`. The user stays logged in and the refresh is tried again after `refreshRetryBaseSeconds`, doubling up to `refreshRetryMaxSeconds`. Only a rejection by the server ends the session.
+
+**Concurrent refreshes:** `RefreshAsync` called while a refresh runs returns the result of the running one.
 
 **Logout:**
 `Authenticated` -> `Anonymous`

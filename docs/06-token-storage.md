@@ -1,22 +1,29 @@
 # Token Storage & Security
 
-## How Tokens Are Stored
+## How the Session Is Stored
 
-Auth tokens are encrypted with AES-256-CBC before being saved to `PlayerPrefs`. This prevents trivial token theft from device storage.
+The token and its expiry are stored in `PlayerPrefs` under the keys `_tnx_tk` and `_tnx_te`. Each value is encrypted and then authenticated (encrypt-then-MAC):
 
-### Encryption Details
+- **Key derivation:** `SHA-256(SystemInfo.deviceUniqueIdentifier + encryptionSalt)` is the master secret; the encryption key and the MAC key are derived from it with HMAC-SHA256 (labels `enc` and `mac`).
+- **Encryption:** AES (256-bit key), random IV per value, CBC mode with PKCS7 padding.
+- **Integrity:** HMAC-SHA256 over a purpose label (`token` or `expiry`), the format version, the IV and the ciphertext. It is compared in constant time before anything is decrypted, so a token value cannot be swapped into the expiry slot.
+- **Format:** Base64 of `version byte | IV | ciphertext | MAC`.
 
-- **Algorithm:** AES-256-CBC
-- **Key derivation:** SHA-256 hash of `SystemInfo.deviceUniqueIdentifier` + config `encryptionSalt`
-- **IV:** Random per encryption, stored alongside ciphertext
-- **Storage:** Base64-encoded ciphertext in `PlayerPrefs`
+## What This Protects – and What It Does Not
 
-### What This Means
+The key material is the device identifier and the salt. The identifier is readable by any code running on the device, and the salt ships inside your app. So:
 
-- Tokens are encrypted at rest
-- Each device has a unique encryption key
-- If the device ID changes (factory reset, different device), stored tokens become unreadable and the user must re-authenticate
-- Changing the `encryptionSalt` in config invalidates all stored tokens
+- The MAC and the encryption detect a damaged or hand-edited value and keep the token from being readable in a casual look at the stored files.
+- They do **not** protect the token from someone who controls the device or can read your app's files and binary. This is tamper detection and obfuscation, not a keystore.
+- For hardware-backed protection extend `TokenStorage` to use the platform keystore (Android Keystore, iOS Keychain). The current implementation works on every Unity platform including Quest.
+
+## Behavior to Know
+
+- A stored value that fails its integrity check, is in an unknown format or cannot be parsed is discarded with a warning in the log, and the user has to log in again.
+- A session stored by an earlier version of the SDK (which used a different format) is discarded the same way once, after the update.
+- If the device identifier changes (another device, factory reset), the stored session becomes unreadable.
+- Changing `encryptionSalt` invalidates every stored session. Use a different salt per project.
+- An expired token is cleared on load.
 
 ## Manual Token Operations
 
@@ -25,19 +32,12 @@ In most cases you won't need these – `AuthService` handles storage automatical
 ```csharp
 using Technyx.Sdk;
 
-// Check if a token exists
 var token = TechnyxSdk.TokenStorage.Load();
 if (token != null)
-{
     Debug.Log($"Token expires: {token.ExpiresAt}");
-}
 
-// Clear stored token (without server logout)
+// Clear the stored session without calling the server
 TechnyxSdk.TokenStorage.Clear();
 ```
 
-## Security Considerations
-
-- The encryption salt should be unique per project. Change it from the default in `TechnyxConfig.json`.
-- `PlayerPrefs` on some platforms (Windows) stores data in the registry or plain files. The AES encryption adds a layer of protection, but it is not equivalent to a hardware-backed keystore.
-- For highest security on Android, consider extending `TokenStorage` to use the Android Keystore. The current implementation is a practical default that works across all Unity platforms including Quest.
+`Load()` returns `null` when nothing valid is stored.

@@ -1,7 +1,12 @@
+using System;
+using Technyx.Sdk.Ai;
 using Technyx.Sdk.Auth;
 using Technyx.Sdk.Config;
 using Technyx.Sdk.Devices;
 using Technyx.Sdk.Http;
+using Technyx.Sdk.Photos;
+using Technyx.Sdk.Teams;
+using Technyx.Sdk.Voice;
 using UnityEngine;
 
 namespace Technyx.Sdk
@@ -11,6 +16,13 @@ namespace Technyx.Sdk
         public static TechnyxSdk Instance { get; private set; }
         public static AuthService Auth { get; private set; }
         public static DeviceService Devices { get; private set; }
+        public static HeartbeatService Heartbeat { get; private set; }
+        public static TeamService Teams { get; private set; }
+        public static OrganizationService Organizations { get; private set; }
+        public static PhotoService Photos { get; private set; }
+        public static AiService Ai { get; private set; }
+        public static AiAdminService AiAdmin { get; private set; }
+        public static VoiceService Voice { get; private set; }
         public static ApiClient Http { get; private set; }
         public static SdkConfig Config { get; private set; }
         public static TokenStorage TokenStorage { get; private set; }
@@ -23,25 +35,70 @@ namespace Technyx.Sdk
             if (Instance != null)
                 return;
 
+            var config = SdkConfigLoader.Load();
+
             var go = new GameObject("[Technyx.Sdk]");
             DontDestroyOnLoad(go);
             Instance = go.AddComponent<TechnyxSdk>();
 
-            Config = SdkConfigLoader.Load();
-            TokenStorage = new TokenStorage(Config.encryptionSalt);
-            Http = new ApiClient(Config, TokenStorage);
-            Auth = new AuthService(Http, TokenStorage, Config);
-            Devices = new DeviceService(Http);
-
+            Build(config);
             Auth.RestoreSession();
 
             Debug.Log($"[Technyx.Sdk] Initialized. API: {Config.apiBaseUrl}");
         }
 
-        private void OnDestroy()
+        // Replaces the configuration of the running SDK. The services are rebuilt, so references to
+        // TechnyxSdk.Auth, Devices and the other services taken earlier go stale and OnAuthStateChanged
+        // has to be subscribed again. A different encryptionSalt makes the stored session unreadable.
+        public static void Configure(SdkConfig config)
+        {
+            if (config == null)
+                throw new ArgumentNullException(nameof(config));
+
+            if (Instance == null)
+                throw new InvalidOperationException("The SDK is not initialized yet.");
+
+            config.Validate();
+
+            Heartbeat?.Shutdown();
+            Auth?.Shutdown();
+            SdkConfigLoader.Replace(config);
+            Build(config);
+            Auth.RestoreSession();
+
+            Debug.Log($"[Technyx.Sdk] Reconfigured. API: {Config.apiBaseUrl}");
+        }
+
+        private static void Build(SdkConfig config)
+        {
+            Config = config;
+            TokenStorage = new TokenStorage(config.encryptionSalt);
+            Http = new ApiClient(config, TokenStorage);
+            Auth = new AuthService(Http, TokenStorage, config);
+            Devices = new DeviceService(Http);
+            Heartbeat = new HeartbeatService(Devices, Auth, config);
+            Teams = new TeamService(Http);
+            Organizations = new OrganizationService(Http);
+            Photos = new PhotoService(Http);
+            Ai = new AiService(Http);
+            AiAdmin = new AiAdminService(Http);
+            Voice = new VoiceService(Http);
+        }
+
+        private void OnApplicationQuit()
         {
             if (Instance == this)
-                Instance = null;
+                Heartbeat?.Stop();
+        }
+
+        private void OnDestroy()
+        {
+            if (Instance != this)
+                return;
+
+            Heartbeat?.Shutdown();
+            Auth?.Shutdown();
+            Instance = null;
         }
     }
 }
