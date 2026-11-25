@@ -6,6 +6,7 @@ using Technyx.Sdk.Devices;
 using Technyx.Sdk.Http;
 using Technyx.Sdk.Photos;
 using Technyx.Sdk.Teams;
+using Technyx.Sdk.Voice;
 using UnityEngine;
 
 namespace Technyx.Sdk
@@ -21,6 +22,7 @@ namespace Technyx.Sdk
         public static PhotoService Photos { get; private set; }
         public static AiService Ai { get; private set; }
         public static AiAdminService AiAdmin { get; private set; }
+        public static VoiceService Voice { get; private set; }
         public static ApiClient Http { get; private set; }
         public static SdkConfig Config { get; private set; }
         public static TokenStorage TokenStorage { get; private set; }
@@ -80,6 +82,7 @@ namespace Technyx.Sdk
             Photos = new PhotoService(Http);
             Ai = new AiService(Http);
             AiAdmin = new AiAdminService(Http);
+            Voice = new VoiceService(Http);
         }
 
         private void OnApplicationQuit()

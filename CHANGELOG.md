@@ -33,3 +33,10 @@ Photos need technyx-backend PR #51 (stacked on PR #9), admin AI needs PR #29. Ag
 - The `from` / `to` filters go out as UTC calendar dates (`yyyy-MM-dd`), the format these endpoints expect.
 - Needs the `view-ai-audit` permission, which the backend does not seed yet: every call answers `403` until a role has it.
 - The audit list of a user without an organization has no `last_page` in its `meta` and is reported as `PARSE_ERROR` (backend defect).
+
+### Voice
+
+- `TechnyxSdk.Voice` (`VoiceService`): `CreateSessionAsync`, `GetSessionAsync`, `EndSessionAsync` for `oai_rt`, `webrtc` and `ws` sessions; `SendCommandAsync` and `SendAudioAsync` (optional language, `Speak` flag); `ListHistoryAsync`.
+- `SendOfferAsync` and `SendIceCandidateAsync` for the backend WebRTC signaling of `oai_rt` sessions; `ExecuteToolAsync` runs a realtime function call (`search_manuals`, `web_search`) through the backend.
+- `RealtimeEvents.Parse` reads an `oai-events` data-channel message: `ToolCallStarted` is the moment to play a local cue (about 0.9 s after the user stops talking), `FunctionCall` turns into an `ExecuteToolAsync` request.
+- The voice endpoints are deployed on api.prod.technyx.ar; `search_manuals` takes `{"queries": [...]}` since technyx-backend PR #60.
