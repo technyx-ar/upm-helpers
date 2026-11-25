@@ -2,9 +2,9 @@
 
 ## 0.3.0
 
-### Do not release before the backend deploy
+### Backend requirements
 
-Photos need technyx-backend PR #51 (stacked on PR #9), admin AI needs PR #29. Against a backend that has not deployed them:
+Photos need technyx-backend PR #51 (with PR #9), admin AI needs PR #29, voice tools need PR #60; all are deployed on api.prod.technyx.ar. Against a self-hosted backend without them:
 
 - the photo `Task` / `User` filters are ignored and `ListAsync` returns unfiltered lists;
 - `UpdatePhotoRequest` no longer carries the stored `meta`, and the old backend replaces `meta` with the extra keys of an update, so **every update without `Extra` wipes the photo's `meta`**.
@@ -31,7 +31,7 @@ Photos need technyx-backend PR #51 (stacked on PR #9), admin AI needs PR #29. Ag
 
 - `TechnyxSdk.AiAdmin` (`AiAdminService`): `GetUsageAsync`, `ListAuditAsync`, `GetAuditAsync` for `/api/v1/admin/ai/*`, with typed models (`AiUsageStats`, `AiAuditLogData`, ...), `AiUsageFilter`, `AiAuditFilter` and the `AiAuditAction` constants.
 - The `from` / `to` filters go out as UTC calendar dates (`yyyy-MM-dd`), the format these endpoints expect.
-- Needs the `view-ai-audit` permission, which the backend does not seed yet: every call answers `403` until a role has it.
+- Needs the `view-ai-audit` permission. The backend's `RolePermissionSeeder` grants it, but it has not been run on api.prod.technyx.ar, so every call answers `403` until a role has it.
 - The audit list of a user without an organization has no `last_page` in its `meta` and is reported as `PARSE_ERROR` (backend defect).
 
 ### Voice
