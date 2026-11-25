@@ -55,8 +55,9 @@ namespace Technyx.Sdk.Voice
             byte[] audio,
             string fileName,
             string contentType,
-            string language,
+            string language = null,
             AiChatContext context = null,
+            bool speak = true,
             CancellationToken cancellationToken = default)
         {
             var invalid = UploadValidation.CheckFile<VoiceCommandResult>("audio", audio, fileName, contentType, MaxAudioBytes);
@@ -66,12 +67,14 @@ namespace Technyx.Sdk.Voice
             if (Array.IndexOf(AudioExtensions, Path.GetExtension(fileName).ToLowerInvariant()) < 0)
                 return Task.FromResult(UploadValidation.Failure<VoiceCommandResult>("audio", "Only mp3, wav, ogg and webm audio can be uploaded."));
 
-            if (string.IsNullOrWhiteSpace(language))
-                return Task.FromResult(UploadValidation.Failure<VoiceCommandResult>("language", "A language is required."));
-
             var form = new MultipartFormBuilder()
-                .AddFile("audio", fileName, contentType, audio)
-                .AddField("language", language);
+                .AddFile("audio", fileName, contentType, audio);
+
+            if (!string.IsNullOrWhiteSpace(language))
+                form.AddField("language", language);
+
+            if (!speak)
+                form.AddField("speak", "0");
 
             if (!string.IsNullOrEmpty(context?.TaskId))
                 form.AddField("context[task_ulid]", context.TaskId);

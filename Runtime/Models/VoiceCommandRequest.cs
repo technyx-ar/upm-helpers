@@ -14,5 +14,8 @@ namespace Technyx.Sdk.Models
 
         [JsonProperty("context", NullValueHandling = NullValueHandling.Ignore)]
         public AiChatContext Context;
+
+        [JsonProperty("speak", NullValueHandling = NullValueHandling.Ignore)]
+        public bool? Speak;
     }
 }

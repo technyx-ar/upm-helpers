@@ -94,6 +94,7 @@ var result = await TechnyxSdk.Voice.SendCommandAsync(new VoiceCommandRequest
     Text = "Show my open tasks",                         // required, at most 2000 characters
     Language = LanguageCodes.English,                    // required
     Context = new AiChatContext { TaskId = taskUlid, Location = "Hangar 2" },   // optional
+    Speak = false,                                        // optional, default true
 });
 
 Debug.Log(result.Data.Text);   // answer; AudioUrl is set when speech was generated
@@ -105,7 +106,12 @@ Audio (mp3, wav, ogg or webm, at most 25 MB; checked before the request):
 
 ```csharp
 var result = await TechnyxSdk.Voice.SendAudioAsync(bytes, "command.wav", "audio/wav", LanguageCodes.Slovak);
+var detected = await TechnyxSdk.Voice.SendAudioAsync(bytes, "command.wav", "audio/wav", speak: false);
 ```
+
+Without a language the backend detects it from the speech and answers in it. Speech it cannot place as Slovak, English or Czech fails with `422` on `language`.
+
+`speak: false` (or `Speak = false` on a text command) skips speech generation: `AudioUrl` is `null` and the answer arrives sooner by the speech generation time (about 3 s for a short answer with the backend's default `tts-1`). Use it when the app only shows the text or speaks it on the device.
 
 The recording is transcribed first. When it holds no recognizable speech the call succeeds with an empty `Text` and `ConversationId`. The backend allows 30 text and 12 audio commands per minute (`429`, handled by the retry policy).
 

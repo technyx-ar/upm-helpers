@@ -220,15 +220,53 @@ namespace Technyx.Sdk.Tests
         }
 
         [Test]
-        public async Task SendAudio_EmptyOrMissingLanguage_FailsWithoutARequest()
+        public async Task SendAudio_EmptyFile_FailsWithoutARequest()
         {
             var empty = await _service.SendAudioAsync(new byte[0], "cmd.wav", "audio/wav", "en");
-            var noLanguage = await _service.SendAudioAsync(new byte[] { 1 }, "cmd.wav", "audio/wav", null);
 
             Assert.IsFalse(empty.IsSuccess);
-            Assert.IsFalse(noLanguage.IsSuccess);
-            Assert.AreEqual(1, noLanguage.Error.GetFieldErrors("language").Count);
             Assert.AreEqual(0, _api.Transport.Requests.Count);
+        }
+
+        [Test]
+        public async Task SendAudio_WithoutLanguage_OmitsTheFieldSoTheBackendDetectsIt()
+        {
+            _api.Transport.Enqueue(200, "{\"success\":true,\"data\":{\"text\":\"ok\",\"conversation_id\":\"01C3\",\"sources\":[]}}");
+            _api.Transport.Enqueue(200, "{\"success\":true,\"data\":{\"text\":\"ok\",\"conversation_id\":\"01C4\",\"sources\":[]}}");
+
+            var missing = await _service.SendAudioAsync(new byte[] { 1 }, "cmd.wav", "audio/wav");
+            var blank = await _service.SendAudioAsync(new byte[] { 1 }, "cmd.wav", "audio/wav", " ");
+
+            Assert.IsTrue(missing.IsSuccess);
+            Assert.IsTrue(blank.IsSuccess);
+            StringAssert.DoesNotContain("name=\"language\"", Latin1(_api.Transport.Requests[0].Body));
+            StringAssert.DoesNotContain("name=\"language\"", Latin1(_api.Transport.Requests[1].Body));
+        }
+
+        [Test]
+        public async Task SendAudio_SpeakFalse_AsksForNoSpeech()
+        {
+            _api.Transport.Enqueue(200, "{\"success\":true,\"data\":{\"text\":\"ok\",\"audio_url\":null,\"conversation_id\":\"01C5\",\"sources\":[]}}");
+            _api.Transport.Enqueue(200, "{\"success\":true,\"data\":{\"text\":\"ok\",\"audio_url\":null,\"conversation_id\":\"01C6\",\"sources\":[]}}");
+
+            await _service.SendAudioAsync(new byte[] { 1 }, "cmd.wav", "audio/wav", speak: false);
+            await _service.SendAudioAsync(new byte[] { 1 }, "cmd.wav", "audio/wav");
+
+            StringAssert.Contains("name=\"speak\"\r\n\r\n0\r\n", Latin1(_api.Transport.Requests[0].Body));
+            StringAssert.DoesNotContain("name=\"speak\"", Latin1(_api.Transport.Requests[1].Body));
+        }
+
+        [Test]
+        public async Task SendCommand_SpeakIsSentOnlyWhenSet()
+        {
+            _api.Transport.Enqueue(200, "{\"success\":true,\"data\":{\"text\":\"ok\",\"conversation_id\":\"01C7\",\"sources\":[]}}");
+            _api.Transport.Enqueue(200, "{\"success\":true,\"data\":{\"text\":\"ok\",\"conversation_id\":\"01C8\",\"sources\":[]}}");
+
+            await _service.SendCommandAsync(new VoiceCommandRequest { Text = "hi", Language = "en", Speak = false });
+            await _service.SendCommandAsync(new VoiceCommandRequest { Text = "hi", Language = "en" });
+
+            Assert.AreEqual(false, (bool)JObject.Parse(_api.Body(0))["speak"]);
+            Assert.IsNull(JObject.Parse(_api.Body(1))["speak"]);
         }
 
         [Test]
