@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Technyx.Sdk.Http;
@@ -36,9 +37,16 @@ namespace Technyx.Sdk.Devices
             return _http.GetAsync<DeviceData>($"devices/{Guard.Segment(deviceId, nameof(deviceId))}", cancellationToken);
         }
 
-        public Task<ApiResponse<DeviceData>> RegisterAsync(RegisterDeviceRequest request, CancellationToken cancellationToken = default)
+        internal event Action<DeviceData> DeviceRegistered;
+
+        public async Task<ApiResponse<DeviceData>> RegisterAsync(RegisterDeviceRequest request, CancellationToken cancellationToken = default)
         {
-            return _http.PostAsync<DeviceData>("devices", request, cancellationToken);
+            var response = await _http.PostAsync<DeviceData>("devices", request, cancellationToken);
+
+            if (response.IsSuccess && response.Data != null)
+                DeviceRegistered?.Invoke(response.Data);
+
+            return response;
         }
 
         public Task<ApiResponse<DeviceData>> UpdateAsync(string deviceId, UpdateDeviceRequest request, CancellationToken cancellationToken = default)
