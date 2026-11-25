@@ -2,7 +2,7 @@
 
 `TechnyxSdk.Photos` (`PhotoService`). Photo ids are ULID strings. Every call returns `ApiResponse<T>` (see [HTTP Client](05-http-client.md)) and takes an optional `CancellationToken`.
 
-> **Backend requirement:** this page describes the contract of technyx-backend PR #51 (photo access rules, ULID filters, merge-style update), stacked on PR #9 (media API rework). Against a backend that has not deployed them, the `Task` / `User` filters are ignored and return unfiltered lists, and an update that carries no `Extra` replaces the stored `meta` with an empty one. Do not ship an app built on this SDK version before the backend deploy.
+> **Backend requirement:** this page describes the contract of technyx-backend PR #51 (photo access rules, ULID filters, merge-style update), with PR #9 (media API rework), both deployed on api.prod.technyx.ar. Against a backend without them, the `Task` / `User` filters are ignored and return unfiltered lists, and an update that carries no `Extra` replaces the stored `meta` with an empty one.
 
 ## Who Sees What
 
