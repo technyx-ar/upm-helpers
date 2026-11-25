@@ -63,20 +63,30 @@ Calling `SendOfferAsync` with the token of a LiveKit session fails with `422`.
 
 ### Tools
 
-The session offers two functions to the model: `search_manuals` (equipment manuals in the knowledge base) and `web_search`. When the model emits a `function_call` on the data channel, run it through the backend and send the result back as a `function_call_output`:
+The session offers two functions to the model: `search_manuals` (equipment manuals in the knowledge base) and `web_search`. Pass every message from the `oai-events` data channel to `RealtimeEvents.Parse`:
 
 ```csharp
-var result = await TechnyxSdk.Voice.ExecuteToolAsync(new VoiceToolCallRequest
-{
-    SessionToken = session.SessionToken,
-    Name = call.Name,             // from the function_call
-    Arguments = call.Arguments,   // JSON string, passed through unchanged
-    CallId = call.CallId,
-});
+var e = RealtimeEvents.Parse(message);
 
-// send result.Data.Output to OpenAI as function_call_output for result.Data.CallId, then request a response
-// result.Data.Sources lists manual files and pages or web URLs
+switch (e.Kind)
+{
+    case RealtimeEventKind.ToolCallStarted:
+        cueSource.Play();   // e.ToolName is known, the arguments are not yet
+        break;
+
+    case RealtimeEventKind.FunctionCall:
+        var result = await TechnyxSdk.Voice.ExecuteToolAsync(e.ToToolCallRequest(session.SessionToken));
+        // send result.Data.Output to OpenAI as function_call_output for result.Data.CallId, then request a response
+        // result.Data.Sources lists manual files and pages or web URLs
+        break;
+}
 ```
+
+`ToolCallStarted` is `response.output_item.added` with an item of type `function_call`. It arrives about 0.9 s after the user stops talking (1.0 s at worst in our measurements), while the spoken answer to a manual question starts only after 2–3 s. Play a short local sound or show an indicator at that moment so the user hears a reaction within a second. The model does not speak during the search.
+
+`FunctionCall` is `response.function_call_arguments.done` and carries the complete arguments. Every other event has `Kind == Other` and its `Type` set. A message without `type`, or a finished call without `name` or `call_id`, throws a `JsonException`.
+
+`search_manuals` takes `{"queries": [...]}`, one to three phrasings of the same question; the backend searches all of them and merges the results.
 
 A failed search returns an error response (`502`), unknown tools and bad arguments `422`, someone else's session `403`. Do not send an empty output in those cases. The SDK does not run the data channel itself.
 
